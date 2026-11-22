@@ -1,1 +1,364 @@
-<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no"><style>body{margin:0;overflow:hidden;background:#1a1a2e;touch-action:none}#hud{position:fixed;top:10px;left:10px;color:#fff;font-family:monospace;pointer-events:none}#btn{position:fixed;top:40px;left:10px;color:#fff;background:rgba(255,255,255,.2);padding:5px 10px;border-radius:5px;user-select:none}</style></head><body><canvas id="c"></canvas><div id="hud"></div><div id="btn">摇杆:动态</div><script>const cvs=document.getElementById('c'),ctx=cvs.getContext('2d'),hud=document.getElementById('hud'),btn=document.getElementById('btn');let W,H;function resize(){W=cvs.width=innerWidth;H=cvs.height=innerHeight}resize();onresize=resize;let isFixed=false,joy={act:false,bx:0,by:0,kx:0,ky:0,dx:0,dy:0,id:null},JR=60,KR=30,FX=100,FY=H-120;btn.onclick=()=>{isFixed=!isFixed;btn.innerText='摇杆:'+(isFixed?'固定':'动态');reset()};function reset(){joy.act=false;joy.dx=0;joy.dy=0;joy.id=null}cvs.ontouchstart=e=>{e.preventDefault();if(joy.act)return;let t=e.changedTouches[0],tx=t.clientX,ty=t.clientY;if(isFixed){if(tx<W/2&&ty>H/2){joy.bx=FX;joy.by=FY;joy.kx=FX;joy.ky=FY;joy.act=true;joy.id=t.identifier}}else{joy.bx=tx;joy.by=ty;joy.kx=tx;joy.ky=ty;joy.act=true;joy.id=t.identifier}};cvs.ontouchmove=e=>{e.preventDefault();if(!joy.act)return;for(let t of e.touches)if(t.identifier==joy.id){let dx=t.clientX-joy.bx,dy=t.clientY-joy.by,d=Math.hypot(dx,dy);if(d>JR){dx=dx/d*JR;dy=dy/d*JR}joy.kx=joy.bx+dx;joy.ky=joy.by+dy;joy.dx=dx/JR;joy.dy=dy/JR}};cvs.ontouchend=cvs.ontouchcancel=e=>{if(!joy.act)return;for(let t of e.changedTouches)if(t.identifier==joy.id)reset()};const rnd=(a,b)=>a+Math.random()*(b-a),dst=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y),P={x:W/2,y:H/2,r:16,sp:3.5,hp:100,mhp:100,pts:[],n:5,ang:0,fl:0,face:0};function initP(n){P.pts=[];for(let i=0;i<n;i++)P.pts.push({o:i*(Math.PI*2/n),cd:0,r:10})}initP(P.n);const M=[],D=[];function spawn(){let e=Math.floor(rnd(0,4)),x,y;if(e==0){x=rnd(0,W);y=-30}else if(e==1){x=rnd(0,W);y=H+30}else if(e==2){x=-30;y=rnd(0,H)}else{x=W+30;y=rnd(0,H)}M.push({x,y,r:rnd(12,20),hp:30,mhp:30,sp:rnd(.6,1.2),c:`hsl(${rnd(0,360)},70%,55%)`,fl:0,acd:0})}let last=performance.now();function loop(now){let dt=Math.min((now-last)/16.67,2);last=now;upd(dt);draw();requestAnimationFrame(loop)}function upd(dt){let mx=0,my=0;if(joy.act){mx=joy.dx*P.sp*dt;my=joy.dy*P.sp*dt;if(Math.hypot(mx,my)>0.1)P.face=Math.atan2(joy.dy,joy.dx)}P.x=Math.max(P.r,Math.min(W-P.r,P.x+mx));P.y=Math.max(P.r,Math.min(H-P.r,P.y+my));P.ang+=.04*dt;P.pts.forEach(p=>{if(p.cd>0)p.cd-=dt});if(M.length<8&&Math.random()<.02)spawn();for(let i=M.length-1;i>=0;i--){let m=M[i];if(m.fl>0)m.fl-=dt;if(m.acd>0)m.acd-=dt;let dx=P.x-m.x,dy=P.y-m.y,d=Math.hypot(dx,dy);if(d>1){m.x+=dx/d*m.sp*dt;m.y+=dy/d*m.sp*dt}if(d<m.r+P.r&&m.acd<=0){P.hp-=8;P.fl=8;m.acd=40}for(let p of P.pts){if(p.cd>0)continue;let a=P.ang+p.o,px=P.x+Math.cos(a)*46,py=P.y+Math.sin(a)*46;if(dst({x:px,y:py},m)<p.r+m.r){m.hp-=12;m.fl=8;p.cd=20;break}}if(m.hp<=0){D.push({x:m.x,y:m.y,r:8,t:0});M.splice(i,1)}}for(let i=D.length-1;i>=0;i--){let d=D[i];d.t+=dt;if(dst(d,P)<P.r+d.r){P.n=Math.min(P.n+1,10);initP(P.n);D.splice(i,1)}}if(P.hp<=0){P.hp=P.mhp;P.x=W/2;P.y=H/2;M.length=0;P.n=5;initP(5)}if(P.fl>0)P.fl-=dt;hud.innerText=`HP ${Math.max(0,Math.round(P.hp))} 花瓣 ${P.n}`}function draw(){ctx.fillStyle='#1a1a2e';ctx.fillRect(0,0,W,H);ctx.strokeStyle='rgba(255,255,255,.05)';for(let i=0;i<W;i+=40){ctx.beginPath();ctx.moveTo(i,0);ctx.lineTo(i,H);ctx.stroke()}for(let i=0;i<H;i+=40){ctx.beginPath();ctx.moveTo(0,i);ctx.lineTo(W,i);ctx.stroke()}D.forEach(d=>{ctx.beginPath();ctx.arc(d.x,d.y,d.r,0,7);ctx.fillStyle='#ffd93d';ctx.fill()});M.forEach(m=>{ctx.beginPath();ctx.arc(m.x,m.y,m.r,0,7);ctx.fillStyle=m.fl>0?'#fff':m.c;ctx.fill()});P.pts.forEach(p=>{if(p.cd>0)return;let a=P.ang+p.o;ctx.beginPath();ctx.arc(P.x+Math.cos(a)*46,P.y+Math.sin(a)*46,p.r,0,7);ctx.fillStyle='#ff6b9d';ctx.fill()});ctx.save();ctx.translate(P.x,P.y);ctx.rotate(P.face);ctx.beginPath();ctx.arc(0,0,P.r,.5,5.8);ctx.lineTo(P.r+6,0);ctx.closePath();ctx.fillStyle=P.fl>0?'#f44':'#4dabf7';ctx.fill();ctx.restore();if(isFixed&&!joy.act)drawJoy(FX,FY,FX,FY,0,0,0);else if(joy.act)drawJoy(joy.bx,joy.by,joy.kx,joy.ky,joy.dx,joy.dy,1)}function drawJoy(bx,by,kx,ky,dx,dy,arr){ctx.globalAlpha=arr?1:.3;ctx.beginPath();ctx.arc(bx,by,JR,0,7);ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.stroke();ctx.beginPath();ctx.arc(kx,ky,KR,0,7);ctx.fillStyle='rgba(77,171,247,.8)';ctx.fill();if(arr&&(dx||dy)){let a=Math.atan2(dy,dx);ctx.save();ctx.translate(bx+Math.cos(a)*80,by+Math.sin(a)*80);ctx.rotate(a);ctx.beginPath();ctx.moveTo(15,0);ctx.lineTo(-5,-12);ctx.lineTo(-5,12);ctx.fillStyle='rgba(255,255,255,.7)';ctx.fill();ctx.restore()}ctx.globalAlpha=1}requestAnimationFrame(loop);</script></body></html>
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>花瓣游戏 - 升级版</title>
+<style>
+  body { margin: 0; overflow: hidden; background: #1a1a2e; touch-action: none; user-select: none; font-family: sans-serif; }
+  canvas { display: block; }
+  .ui-btn { position: fixed; background: rgba(255,255,255,0.15); color: #fff; border: 1px solid rgba(255,255,255,0.3); border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: bold; pointer-events: auto; }
+  .ui-btn:active { background: rgba(255,255,255,0.3); }
+  #toggleUI { position: fixed; bottom: 20px; right: 20px; width: 50px; height: 50px; border-radius: 10px; background: rgba(255,255,255,0.2); color: #fff; display: flex; justify-content: center; align-items: center; font-size: 14px; z-index: 100; border: 1px solid #fff; }
+  #joyToggle { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); padding: 8px 15px; border-radius: 20px; background: rgba(255,255,255,0.2); color: #fff; font-size: 14px; z-index: 100; border: 1px solid #fff; }
+  #btnA { width: 70px; height: 70px; bottom: 150px; left: 30px; font-size: 24px; }
+  #btnB { width: 70px; height: 70px; bottom: 60px; left: 110px; font-size: 24px; }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<!-- 界面 UI 层 -->
+<div id="btnA" class="ui-btn">A</div>
+<div id="btnB" class="ui-btn">B</div>
+<div id="joyToggle">摇杆: 动态</div>
+<div id="toggleUI">隐藏UI</div>
+
+<script>
+const cvs = document.getElementById('c');
+const ctx = cvs.getContext('2d');
+const btnA = document.getElementById('btnA');
+const btnB = document.getElementById('btnB');
+const joyToggle = document.getElementById('joyToggle');
+const toggleUI = document.getElementById('toggleUI');
+
+let W, H;
+function resize() {
+  W = cvs.width = window.innerWidth;
+  H = cvs.height = window.innerHeight;
+}
+resize();
+window.addEventListener('resize', resize);
+
+// --- UI 状态 ---
+let showUI = true;
+let isFixed = false;
+let joyMode = 'dynamic'; // 'dynamic', 'fixed'
+
+toggleUI.onclick = () => {
+  showUI = !showUI;
+  const els = [btnA, btnB, joyToggle];
+  els.forEach(el => showUI ? el.classList.remove('hidden') : el.classList.add('hidden'));
+  toggleUI.innerText = showUI ? '隐藏UI' : '显示UI';
+};
+
+joyToggle.onclick = () => {
+  isFixed = !isFixed;
+  joyToggle.innerText = '摇杆: ' + (isFixed ? '固定' : '动态');
+};
+
+let isA = false, isB = false;
+let currentPetalRadius = 46; // 花瓣基础半径
+const maxPetalRadius = 90;
+const minPetalRadius = 25;
+
+// A/B 按键逻辑
+btnA.addEventListener('touchstart', e => { e.preventDefault(); isA = true; });
+btnA.addEventListener('touchend', e => { e.preventDefault(); isA = false; });
+btnB.addEventListener('touchstart', e => { e.preventDefault(); isB = true; });
+btnB.addEventListener('touchend', e => { e.preventDefault(); isB = false; });
+
+// --- 摇杆 & 指针逻辑 ---
+let joy = { act: false, bx: 0, by: 0, kx: 0, ky: 0, dx: 0, dy: 0, id: null };
+const JR = 60, KR = 30, FX = 100, FY = H - 120;
+
+let ptr = { act: false, x: 0, y: 0, sx: 0, sy: 0, id: null }; // 右侧指针
+
+cvs.addEventListener('touchstart', e => {
+  e.preventDefault();
+  const t = e.changedTouches[0];
+  const tx = t.clientX;
+  const ty = t.clientY;
+
+  // 判断点击区域
+  if (tx > W / 2) {
+    // 右侧控制指针
+    ptr.act = true;
+    ptr.sx = tx; ptr.sy = ty;
+    ptr.x = tx; ptr.y = ty;
+    ptr.id = t.identifier;
+  } else {
+    // 左侧控制摇杆
+    if (joy.act) return;
+    if (isFixed) {
+      // 固定摇杆区域
+      joy.bx = FX; joy.by = FY; joy.kx = FX; joy.ky = FY;
+    } else {
+      // 动态摇杆
+      joy.bx = tx; joy.by = ty; joy.kx = tx; joy.ky = ty;
+    }
+    joy.act = true;
+    joy.id = t.identifier;
+  }
+}, { passive: false });
+
+cvs.addEventListener('touchmove', e => {
+  e.preventDefault();
+  for (let i = 0; i < e.touches.length; i++) {
+    const t = e.touches[i];
+    if (joy.act && t.identifier === joy.id) {
+      // 摇杆移动逻辑
+      let dx = t.clientX - joy.bx;
+      let dy = t.clientY - joy.by;
+      const dist = Math.hypot(dx, dy);
+      if (dist > JR) {
+        dx = (dx / dist) * JR;
+        dy = (dy / dist) * JR;
+      }
+      joy.kx = joy.bx + dx;
+      joy.ky = joy.by + dy;
+      joy.dx = dx / JR;
+      joy.dy = dy / JR;
+    }
+    if (ptr.act && t.identifier === ptr.id) {
+      // 指针拖拽逻辑
+      ptr.x = t.clientX;
+      ptr.y = t.clientY;
+    }
+  }
+}, { passive: false });
+
+cvs.addEventListener('touchend', e => {
+  for (let i = 0; i < e.changedTouches.length; i++) {
+    const t = e.changedTouches[i];
+    if (joy.act && t.identifier === joy.id) {
+      joy.act = false; joy.dx = 0; joy.dy = 0; joy.id = null;
+    }
+    if (ptr.act && t.identifier === ptr.id) {
+      ptr.act = false; ptr.id = null;
+    }
+  }
+});
+cvs.addEventListener('touchcancel', (e) => {
+  joy.act = false; ptr.act = false;
+});
+
+// --- 游戏核心对象 ---
+const rnd = (a, b) => a + Math.random() * (b - a);
+const dst = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+
+const P = { x: W / 2, y: H / 2, r: 16, sp: 3.5, hp: 100, mhp: 100, pts: [], n: 5, ang: 0, fl: 0, face: 0 };
+
+function initP(n) {
+  P.pts = [];
+  for (let i = 0; i < n; i++) P.pts.push({ o: i * (Math.PI * 2 / n), cd: 0, r: 10 });
+}
+initP(P.n);
+
+const M = [], D = [];
+function spawn() {
+  let e = Math.floor(rnd(0, 4)), x, y;
+  if (e == 0) { x = rnd(0, W); y = -30; }
+  else if (e == 1) { x = rnd(0, W); y = H + 30; }
+  else if (e == 2) { x = -30; y = rnd(0, H); }
+  else { x = W + 30; y = rnd(0, H); }
+  M.push({ x, y, r: rnd(12, 20), hp: 30, mhp: 30, sp: rnd(.6, 1.2), c: `hsl(${rnd(0, 360)},70%,55%)`, fl: 0, acd: 0 });
+}
+
+let last = performance.now();
+function loop(now) {
+  let dt = Math.min((now - last) / 16.67, 2);
+  last = now;
+  upd(dt);
+  draw();
+  requestAnimationFrame(loop);
+}
+
+function upd(dt) {
+  // 花瓣半径变化
+  if (isA) currentPetalRadius = Math.min(currentPetalRadius + 2 * dt, maxPetalRadius);
+  if (isB) currentPetalRadius = Math.max(currentPetalRadius - 2 * dt, minPetalRadius);
+
+  // 移动
+  let mx = 0, my = 0;
+  if (joy.act) {
+    mx = joy.dx * P.sp * dt;
+    my = joy.dy * P.sp * dt;
+    if (Math.hypot(mx, my) > 0.1) P.face = Math.atan2(joy.dy, joy.dx);
+  }
+  P.x = Math.max(P.r, Math.min(W - P.r, P.x + mx));
+  P.y = Math.max(P.r, Math.min(H - P.r, P.y + my));
+
+  P.ang += .04 * dt;
+  P.pts.forEach(p => { if (p.cd > 0) p.cd -= dt; });
+
+  if (M.length < 8 && Math.random() < .02) spawn();
+
+  for (let i = M.length - 1; i >= 0; i--) {
+    let m = M[i];
+    if (m.fl > 0) m.fl -= dt;
+    if (m.acd > 0) m.acd -= dt;
+    let dx = P.x - m.x, dy = P.y - m.y, d = Math.hypot(dx, dy);
+    if (d > 1) {
+      m.x += dx / d * m.sp * dt;
+      m.y += dy / d * m.sp * dt;
+    }
+    if (d < m.r + P.r && m.acd <= 0) {
+      P.hp -= 8; P.fl = 8; m.acd = 40;
+    }
+    
+    // 花瓣攻击判定
+    for (let p of P.pts) {
+      if (p.cd > 0) continue;
+      let a = P.ang + p.o, px = P.x + Math.cos(a) * currentPetalRadius, py = P.y + Math.sin(a) * currentPetalRadius;
+      if (dst({ x: px, y: py }, m) < p.r + m.r) {
+        m.hp -= 12; m.fl = 8; p.cd = 20; break;
+      }
+    }
+    if (m.hp <= 0) {
+      D.push({ x: m.x, y: m.y, r: 8, t: 0 });
+      M.splice(i, 1);
+    }
+  }
+
+  for (let i = D.length - 1; i >= 0; i--) {
+    let d = D[i]; d.t += dt;
+    if (dst(d, P) < P.r + d.r) {
+      P.n = Math.min(P.n + 1, 10); initP(P.n); D.splice(i, 1);
+    }
+  }
+  
+  if (P.hp <= 0) {
+    P.hp = P.mhp; P.x = W / 2; P.y = H / 2; M.length = 0; P.n = 5; initP(5);
+  }
+  if (P.fl > 0) P.fl -= dt;
+}
+
+function draw() {
+  ctx.fillStyle = '#1a1a2e';
+  ctx.fillRect(0, 0, W, H);
+  ctx.strokeStyle = 'rgba(255,255,255,.05)';
+  for (let i = 0; i < W; i += 40) { ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, H); ctx.stroke(); }
+  for (let i = 0; i < H; i += 40) { ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(W, i); ctx.stroke(); }
+
+  // 掉落物
+  D.forEach(d => { ctx.beginPath(); ctx.arc(d.x, d.y, d.r, 0, 7); ctx.fillStyle = '#ffd93d'; ctx.fill(); });
+  
+  // 怪物
+  M.forEach(m => { ctx.beginPath(); ctx.arc(m.x, m.y, m.r, 0, 7); ctx.fillStyle = m.fl > 0 ? '#fff' : m.c; ctx.fill(); });
+
+  // 花瓣
+  P.pts.forEach(p => {
+    if (p.cd > 0) return;
+    let a = P.ang + p.o;
+    ctx.beginPath();
+    ctx.arc(P.x + Math.cos(a) * currentPetalRadius, P.y + Math.sin(a) * currentPetalRadius, p.r, 0, 7);
+    ctx.fillStyle = '#ff6b9d';
+    ctx.fill();
+  });
+
+  // 玩家本体
+  ctx.save(); ctx.translate(P.x, P.y); ctx.rotate(P.face);
+  ctx.beginPath(); ctx.arc(0, 0, P.r, .5, 5.8); ctx.lineTo(P.r + 6, 0); ctx.closePath();
+  ctx.fillStyle = P.fl > 0 ? '#f44' : '#4dabf7'; ctx.fill();
+  ctx.restore();
+
+  // 绘制摇杆
+  if (showUI || joy.act) {
+    if (isFixed && !joy.act) {
+      drawJoy(FX, FY, FX, FY, 0, 0, false);
+    } else if (joy.act) {
+      drawJoy(joy.bx, joy.by, joy.kx, joy.ky, joy.dx, joy.dy, true);
+    }
+  }
+
+  // 绘制右侧带数字指针
+  if (ptr.act) {
+    let dx = ptr.x - ptr.sx, dy = ptr.y - ptr.sy;
+    let dist = Math.hypot(dx, dy);
+    let angle = Math.atan2(dy, dx);
+    
+    ctx.beginPath();
+    ctx.moveTo(ptr.sx, ptr.sy);
+    ctx.lineTo(ptr.x, ptr.y);
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+    
+    // 画箭头
+    ctx.save();
+    ctx.translate(ptr.x, ptr.y);
+    ctx.rotate(angle);
+    ctx.beginPath();
+    ctx.moveTo(10, 0); ctx.lineTo(-5, -8); ctx.lineTo(-5, 8);
+    ctx.fillStyle = '#fff'; ctx.fill();
+    ctx.restore();
+
+    // 显示距离数字
+    if (dist > 10) {
+      ctx.font = '16px monospace';
+      ctx.fillStyle = '#fff';
+      ctx.textAlign = 'center';
+      ctx.fillText(Math.round(dist), (ptr.sx + ptr.x) / 2, (ptr.sy + ptr.y) / 2 - 15);
+    }
+  }
+
+  // 绘制右上角玩家头像和血条
+  if (showUI) {
+    let hx = W - 80, hy = 50;
+    
+    // 画头像
+    ctx.save(); ctx.translate(hx, hy); ctx.rotate(P.face);
+    ctx.beginPath(); ctx.arc(0, 0, 14, .5, 5.8); ctx.lineTo(14 + 6, 0); ctx.closePath();
+    ctx.fillStyle = P.fl > 0 ? '#f44' : '#4dabf7'; ctx.fill();
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.restore();
+
+    // 画血条底框
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(hx + 25, hy - 10, 100, 20);
+    
+    // 画血条
+    ctx.fillStyle = '#f44';
+    ctx.fillRect(hx + 25, hy - 10, 100 * Math.max(0, P.hp / P.mhp), 20);
+    
+    // 显示血量数字
+    ctx.fillStyle = '#fff';
+    ctx.font = '14px monospace';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(`${Math.round(P.hp)}/${P.mhp}`, hx + 30, hy + 1);
+  }
+}
+
+function drawJoy(bx, by, kx, ky, dx, dy, showArrow) {
+  ctx.globalAlpha = showArrow ? 1 : 0.3;
+  // 底盘
+  ctx.beginPath(); ctx.arc(bx, by, JR, 0, 7);
+  ctx.fillStyle = 'rgba(255,255,255,0.1)'; ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.lineWidth = 2; ctx.stroke();
+  
+  // 摇杆头
+  ctx.beginPath(); ctx.arc(kx, ky, KR, 0, 7);
+  ctx.fillStyle = 'rgba(77, 171, 247, 0.8)'; ctx.fill();
+  ctx.strokeStyle = '#fff'; ctx.stroke();
+
+  // 箭头（贴在小球上）
+  if (showArrow && (dx !== 0 || dy !== 0)) {
+    let angle = Math.atan2(dy, dx);
+    ctx.save();
+    ctx.translate(kx + Math.cos(angle) * KR, ky + Math.sin(angle) * KR);
+    ctx.rotate(angle);
+    ctx.beginPath();
+    ctx.moveTo(12, 0); ctx.lineTo(-4, -10); ctx.lineTo(-4, 10); ctx.closePath();
+    ctx.fillStyle = '#fff'; ctx.fill();
+    ctx.restore();
+  }
+  ctx.globalAlpha = 1;
+}
+
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
