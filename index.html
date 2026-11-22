@@ -3,36 +3,76 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>花瓣游戏 - 升级版</title>
+<title>花瓣游戏 - 终极版</title>
 <style>
-  body { margin: 0; overflow: hidden; background: #1a1a2e; touch-action: none; user-select: none; font-family: sans-serif; }
+  body { margin: 0; overflow: hidden; background: #1a1a2e; touch-action: none; user-select: none; font-family: sans-serif; color: #fff; }
   canvas { display: block; }
-  .ui-btn { position: fixed; background: rgba(255,255,255,0.15); color: #fff; border: 1px solid rgba(255,255,255,0.3); border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: bold; pointer-events: auto; }
-  .ui-btn:active { background: rgba(255,255,255,0.3); }
-  #toggleUI { position: fixed; bottom: 20px; right: 20px; width: 50px; height: 50px; border-radius: 10px; background: rgba(255,255,255,0.2); color: #fff; display: flex; justify-content: center; align-items: center; font-size: 14px; z-index: 100; border: 1px solid #fff; }
-  #joyToggle { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); padding: 8px 15px; border-radius: 20px; background: rgba(255,255,255,0.2); color: #fff; font-size: 14px; z-index: 100; border: 1px solid #fff; }
-  #btnA { width: 70px; height: 70px; bottom: 150px; left: 30px; font-size: 24px; }
-  #btnB { width: 70px; height: 70px; bottom: 60px; left: 110px; font-size: 24px; }
+  
+  /* UI 基础按钮样式 */
+  .ui-btn { position: fixed; background: rgba(255,255,255,0.15); border: 2px solid rgba(255,255,255,0.4); display: flex; justify-content: center; align-items: center; font-weight: bold; z-index: 10; border-radius: 50%; transition: background 0.1s; }
+  .ui-btn:active, .ui-btn.active { background: rgba(255,255,255,0.4); }
+  
+  /* 按键大小位置 */
+  #btnA { width: 70px; height: 70px; bottom: 30px; right: 120px; font-size: 28px; }
+  #btnB { width: 70px; height: 70px; bottom: 110px; right: 30px; font-size: 28px; }
+  
+  /* 设置齿轮 */
+  #btnSettings { position: fixed; top: 20px; right: 20px; width: 45px; height: 45px; border-radius: 10px; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.5); display: flex; justify-content: center; align-items: center; font-size: 24px; z-index: 100; cursor: pointer; }
+  
+  /* 设置面板 */
+  #settingsPanel { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 80%; max-width: 350px; background: rgba(30, 30, 50, 0.95); border: 2px solid #4dabf7; border-radius: 15px; padding: 20px; z-index: 200; display: none; flex-direction: column; gap: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.8); }
+  #settingsPanel h2 { margin: 0 0 10px 0; text-align: center; color: #4dabf7; font-size: 20px; }
+  .setting-row { display: flex; justify-content: space-between; align-items: center; font-size: 15px; }
+  .setting-row button { padding: 6px 12px; border-radius: 5px; border: none; background: #4dabf7; color: #fff; font-weight: bold; cursor: pointer; min-width: 80px; }
+  .setting-row button.off { background: #555; }
+  #closeSettings { margin-top: 10px; padding: 10px; border-radius: 8px; border: none; background: #ff6b9d; color: #fff; font-weight: bold; font-size: 16px; cursor: pointer; }
+  
   .hidden { display: none !important; }
 </style>
 </head>
 <body>
 <canvas id="c"></canvas>
 
-<!-- 界面 UI 层 -->
+<!-- 右下角技能键 -->
 <div id="btnA" class="ui-btn">A</div>
 <div id="btnB" class="ui-btn">B</div>
-<div id="joyToggle">摇杆: 动态</div>
-<div id="toggleUI">隐藏UI</div>
+
+<!-- 右上角设置按钮 -->
+<div id="btnSettings">⚙️</div>
+
+<!-- 设置面板 -->
+<div id="settingsPanel">
+  <h2>游戏设置</h2>
+  <div class="setting-row">
+    <span>摇杆模式</span>
+    <button id="setJoyMode">动态</button>
+  </div>
+  <div class="setting-row">
+    <span>按键模式</span>
+    <button id="setKeyMode">长按</button>
+  </div>
+  <div class="setting-row">
+    <span>屏幕方向</span>
+    <button id="setScreen">自由</button>
+  </div>
+  <div class="setting-row">
+    <span>摇杆外观</span>
+    <button id="setJoyLook">有摇杆头</button>
+  </div>
+  <div class="setting-row">
+    <span>卫星箭头</span>
+    <button id="setArrow">显示</button>
+  </div>
+  <div class="setting-row">
+    <span>隐藏按键/UI</span>
+    <button id="setUI">显示</button>
+  </div>
+  <button id="closeSettings">完成</button>
+</div>
 
 <script>
 const cvs = document.getElementById('c');
 const ctx = cvs.getContext('2d');
-const btnA = document.getElementById('btnA');
-const btnB = document.getElementById('btnB');
-const joyToggle = document.getElementById('joyToggle');
-const toggleUI = document.getElementById('toggleUI');
-
 let W, H;
 function resize() {
   W = cvs.width = window.innerWidth;
@@ -41,114 +81,77 @@ function resize() {
 resize();
 window.addEventListener('resize', resize);
 
-// --- UI 状态 ---
-let showUI = true;
-let isFixed = false;
-let joyMode = 'dynamic'; // 'dynamic', 'fixed'
-
-toggleUI.onclick = () => {
-  showUI = !showUI;
-  const els = [btnA, btnB, joyToggle];
-  els.forEach(el => showUI ? el.classList.remove('hidden') : el.classList.add('hidden'));
-  toggleUI.innerText = showUI ? '隐藏UI' : '显示UI';
+// ================= 设置状态 =================
+let settings = {
+  joyMode: 'dynamic',  // 'dynamic' | 'fixed'
+  keyMode: 'hold',     // 'hold' | 'click'
+  screen: 'free',      // 'free' | 'landscape' | 'portrait'
+  joyLook: 'head',     // 'head' | 'nohead'
+  showArrow: true,
+  showUI: true
 };
 
-joyToggle.onclick = () => {
-  isFixed = !isFixed;
-  joyToggle.innerText = '摇杆: ' + (isFixed ? '固定' : '动态');
+// UI 元素
+const btnA = document.getElementById('btnA');
+const btnB = document.getElementById('btnB');
+const btnSettings = document.getElementById('btnSettings');
+const settingsPanel = document.getElementById('settingsPanel');
+const closeBtn = document.getElementById('closeSettings');
+
+// 设置面板交互
+btnSettings.onclick = () => settingsPanel.style.display = 'flex';
+closeBtn.onclick = () => {
+  settingsPanel.style.display = 'none';
+  applyScreenOrientation();
 };
 
-let isA = false, isB = false;
-let currentPetalRadius = 46; // 花瓣基础半径
-const maxPetalRadius = 90;
-const minPetalRadius = 25;
+const btnSetJoy = document.getElementById('setJoyMode');
+const btnSetKey = document.getElementById('setKeyMode');
+const btnSetScreen = document.getElementById('setScreen');
+const btnSetLook = document.getElementById('setJoyLook');
+const btnSetArrow = document.getElementById('setArrow');
+const btnSetUI = document.getElementById('setUI');
 
-// A/B 按键逻辑
-btnA.addEventListener('touchstart', e => { e.preventDefault(); isA = true; });
-btnA.addEventListener('touchend', e => { e.preventDefault(); isA = false; });
-btnB.addEventListener('touchstart', e => { e.preventDefault(); isB = true; });
-btnB.addEventListener('touchend', e => { e.preventDefault(); isB = false; });
+function updateUIButtons() {
+  btnSetJoy.innerText = settings.joyMode === 'dynamic' ? '动态' : '固定';
+  btnSetKey.innerText = settings.keyMode === 'hold' ? '长按' : '点击';
+  btnSetScreen.innerText = settings.screen === 'free' ? '自由' : (settings.screen === 'landscape' ? '横屏' : '竖屏');
+  btnSetLook.innerText = settings.joyLook === 'head' ? '有摇杆头' : '无摇杆头';
+  btnSetArrow.innerText = settings.showArrow ? '显示' : '隐藏';
+  btnSetUI.innerText = settings.showUI ? '显示' : '隐藏';
 
-// --- 摇杆 & 指针逻辑 ---
-let joy = { act: false, bx: 0, by: 0, kx: 0, ky: 0, dx: 0, dy: 0, id: null };
-const JR = 60, KR = 30, FX = 100, FY = H - 120;
+  // 处理 UI 隐藏
+  const els = [btnA, btnB];
+  els.forEach(el => settings.showUI ? el.classList.remove('hidden') : el.classList.add('hidden'));
+}
 
-let ptr = { act: false, x: 0, y: 0, sx: 0, sy: 0, id: null }; // 右侧指针
+btnSetJoy.onclick = () => { settings.joyMode = settings.joyMode === 'dynamic' ? 'fixed' : 'dynamic'; updateUIButtons(); resetJoy(); };
+btnSetKey.onclick = () => { settings.keyMode = settings.keyMode === 'hold' ? 'click' : 'hold'; updateUIButtons(); };
+btnSetScreen.onclick = () => {
+  settings.screen = settings.screen === 'free' ? 'landscape' : (settings.screen === 'landscape' ? 'portrait' : 'free');
+  updateUIButtons();
+};
+btnSetLook.onclick = () => { settings.joyLook = settings.joyLook === 'head' ? 'nohead' : 'head'; updateUIButtons(); };
+btnSetArrow.onclick = () => { settings.showArrow = !settings.showArrow; updateUIButtons(); };
+btnSetUI.onclick = () => { settings.showUI = !settings.showUI; updateUIButtons(); };
 
-cvs.addEventListener('touchstart', e => {
-  e.preventDefault();
-  const t = e.changedTouches[0];
-  const tx = t.clientX;
-  const ty = t.clientY;
-
-  // 判断点击区域
-  if (tx > W / 2) {
-    // 右侧控制指针
-    ptr.act = true;
-    ptr.sx = tx; ptr.sy = ty;
-    ptr.x = tx; ptr.y = ty;
-    ptr.id = t.identifier;
+function applyScreenOrientation() {
+  if (settings.screen === 'landscape') {
+    if (screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(()=>{});
+  } else if (settings.screen === 'portrait') {
+    if (screen.orientation && screen.orientation.lock) screen.orientation.lock('portrait').catch(()=>{});
   } else {
-    // 左侧控制摇杆
-    if (joy.act) return;
-    if (isFixed) {
-      // 固定摇杆区域
-      joy.bx = FX; joy.by = FY; joy.kx = FX; joy.ky = FY;
-    } else {
-      // 动态摇杆
-      joy.bx = tx; joy.by = ty; joy.kx = tx; joy.ky = ty;
-    }
-    joy.act = true;
-    joy.id = t.identifier;
+    if (screen.orientation && screen.orientation.unlock) screen.orientation.unlock();
   }
-}, { passive: false });
+}
+updateUIButtons();
 
-cvs.addEventListener('touchmove', e => {
-  e.preventDefault();
-  for (let i = 0; i < e.touches.length; i++) {
-    const t = e.touches[i];
-    if (joy.act && t.identifier === joy.id) {
-      // 摇杆移动逻辑
-      let dx = t.clientX - joy.bx;
-      let dy = t.clientY - joy.by;
-      const dist = Math.hypot(dx, dy);
-      if (dist > JR) {
-        dx = (dx / dist) * JR;
-        dy = (dy / dist) * JR;
-      }
-      joy.kx = joy.bx + dx;
-      joy.ky = joy.by + dy;
-      joy.dx = dx / JR;
-      joy.dy = dy / JR;
-    }
-    if (ptr.act && t.identifier === ptr.id) {
-      // 指针拖拽逻辑
-      ptr.x = t.clientX;
-      ptr.y = t.clientY;
-    }
-  }
-}, { passive: false });
-
-cvs.addEventListener('touchend', e => {
-  for (let i = 0; i < e.changedTouches.length; i++) {
-    const t = e.changedTouches[i];
-    if (joy.act && t.identifier === joy.id) {
-      joy.act = false; joy.dx = 0; joy.dy = 0; joy.id = null;
-    }
-    if (ptr.act && t.identifier === ptr.id) {
-      ptr.act = false; ptr.id = null;
-    }
-  }
-});
-cvs.addEventListener('touchcancel', (e) => {
-  joy.act = false; ptr.act = false;
-});
-
-// --- 游戏核心对象 ---
-const rnd = (a, b) => a + Math.random() * (b - a);
-const dst = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
-
-const P = { x: W / 2, y: H / 2, r: 16, sp: 3.5, hp: 100, mhp: 100, pts: [], n: 5, ang: 0, fl: 0, face: 0 };
+// ================= 玩家移动物理 =================
+const P = {
+  x: W/2, y: H/2, r: 16, vx: 0, vy: 0,
+  accel: 0.6, friction: 0.92, maxSpeed: 7,
+  hp: 100, mhp: 100, pts: [], n: 5, ang: 0, fl: 0, face: 0
+};
 
 function initP(n) {
   P.pts = [];
@@ -156,7 +159,91 @@ function initP(n) {
 }
 initP(P.n);
 
+// ================= 摇杆逻辑 =================
+let joy = { act: false, bx: 0, by: 0, kx: 0, ky: 0, dx: 0, dy: 0, id: null };
+let JR = 60, KR = 30, FX = 100, FY = H - 120;
+
+function resetJoy() {
+  joy.act = false; joy.dx = 0; joy.dy = 0; joy.id = null;
+}
+
+cvs.addEventListener('touchstart', e => {
+  if(!settings.showUI) return;
+  const t = e.changedTouches[0];
+  const tx = t.clientX;
+  const ty = t.clientY;
+  
+  // 排除点击右侧区域
+  if (tx > W - 180 && ty > H - 180) return; 
+
+  if (joy.act) return;
+  if (settings.joyMode === 'fixed') {
+    joy.bx = FX; joy.by = FY; joy.kx = FX; joy.ky = FY;
+  } else {
+    joy.bx = tx; joy.by = ty; joy.kx = tx; joy.ky = ty;
+  }
+  joy.act = true;
+  joy.id = t.identifier;
+}, { passive: false });
+
+cvs.addEventListener('touchmove', e => {
+  e.preventDefault();
+  if (!joy.act) return;
+  for (let i = 0; i < e.touches.length; i++) {
+    const t = e.touches[i];
+    if (t.identifier === joy.id) {
+      let dx = t.clientX - joy.bx;
+      let dy = t.clientY - joy.by;
+      const dist = Math.hypot(dx, dy);
+      if (dist > JR) { dx = (dx / dist) * JR; dy = (dy / dist) * JR; }
+      joy.kx = joy.bx + dx;
+      joy.ky = joy.by + dy;
+      joy.dx = dx / JR;
+      joy.dy = dy / JR;
+    }
+  }
+}, { passive: false });
+
+cvs.addEventListener('touchend', e => {
+  for (let i = 0; i < e.changedTouches.length; i++) {
+    if (e.changedTouches[i].identifier === joy.id) resetJoy();
+  }
+});
+cvs.addEventListener('touchcancel', resetJoy);
+
+
+// ================= A/B 键逻辑 =================
+let currentPetalRadius = 46;
+const maxPetalRadius = 90;
+const minPetalRadius = 25;
+let isALong = false, isBLong = false;
+let isAClicked = false, isBClicked = false;
+
+function handleDown(isA) {
+  if (settings.keyMode === 'hold') {
+    if (isA) isALong = true; else isBLong = true;
+  } else {
+    if (isA) { isAClicked = !isAClicked; if(isAClicked) isBClicked = false; }
+    else { isBClicked = !isBClicked; if(isBClicked) isAClicked = false; }
+  }
+}
+function handleUp(isA) {
+  if (settings.keyMode === 'hold') {
+    if (isA) isALong = false; else isBLong = false;
+  }
+}
+
+btnA.addEventListener('touchstart', e => { e.preventDefault(); handleDown(true); });
+btnA.addEventListener('touchend', e => { e.preventDefault(); handleUp(true); });
+btnB.addEventListener('touchstart', e => { e.preventDefault(); handleDown(false); });
+btnB.addEventListener('touchend', e => { e.preventDefault(); handleUp(false); });
+
+
+// ================= 游戏主循环 =================
+const rnd = (a, b) => a + Math.random() * (b - a);
+const dst = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 const M = [], D = [];
+
 function spawn() {
   let e = Math.floor(rnd(0, 4)), x, y;
   if (e == 0) { x = rnd(0, W); y = -30; }
@@ -176,23 +263,44 @@ function loop(now) {
 }
 
 function upd(dt) {
-  // 花瓣半径变化
-  if (isA) currentPetalRadius = Math.min(currentPetalRadius + 2 * dt, maxPetalRadius);
-  if (isB) currentPetalRadius = Math.max(currentPetalRadius - 2 * dt, minPetalRadius);
+  // 1. 处理 A/B 键花瓣半径变化
+  let targetRadius = 46;
+  if (isALong || isAClicked) targetRadius = maxPetalRadius;
+  if (isBLong || isBClicked) targetRadius = minPetalRadius;
+  
+  // 平滑过渡伸缩
+  if (currentPetalRadius < targetRadius) currentPetalRadius = Math.min(currentPetalRadius + 3 * dt, targetRadius);
+  if (currentPetalRadius > targetRadius) currentPetalRadius = Math.max(currentPetalRadius - 3 * dt, targetRadius);
 
-  // 移动
-  let mx = 0, my = 0;
+  // 2. 物理引擎移动（加速、惯性）
   if (joy.act) {
-    mx = joy.dx * P.sp * dt;
-    my = joy.dy * P.sp * dt;
-    if (Math.hypot(mx, my) > 0.1) P.face = Math.atan2(joy.dy, joy.dx);
+    P.vx += joy.dx * P.accel * dt;
+    P.vy += joy.dy * P.accel * dt;
+    if (Math.hypot(P.vx, P.vy) > 0.1) P.face = Math.atan2(P.vy, P.vx);
   }
-  P.x = Math.max(P.r, Math.min(W - P.r, P.x + mx));
-  P.y = Math.max(P.r, Math.min(H - P.r, P.y + my));
+  
+  // 摩擦力
+  P.vx *= Math.pow(P.friction, dt);
+  P.vy *= Math.pow(P.friction, dt);
+  
+  // 限制最大速度
+  let spd = Math.hypot(P.vx, P.vy);
+  if (spd > P.maxSpeed) {
+    P.vx = (P.vx / spd) * P.maxSpeed;
+    P.vy = (P.vy / spd) * P.maxSpeed;
+  }
+  
+  // 移动并处理边界反弹（碰撞）
+  P.x += P.vx * dt;
+  P.y += P.vy * dt;
+  if (P.x < P.r) { P.x = P.r; P.vx *= -0.5; }
+  if (P.x > W - P.r) { P.x = W - P.r; P.vx *= -0.5; }
+  if (P.y < P.r) { P.y = P.r; P.vy *= -0.5; }
+  if (P.y > H - P.r) { P.y = H - P.r; P.vy *= -0.5; }
 
+  // 3. 怪物和花瓣判定
   P.ang += .04 * dt;
   P.pts.forEach(p => { if (p.cd > 0) p.cd -= dt; });
-
   if (M.length < 8 && Math.random() < .02) spawn();
 
   for (let i = M.length - 1; i >= 0; i--) {
@@ -200,37 +308,29 @@ function upd(dt) {
     if (m.fl > 0) m.fl -= dt;
     if (m.acd > 0) m.acd -= dt;
     let dx = P.x - m.x, dy = P.y - m.y, d = Math.hypot(dx, dy);
-    if (d > 1) {
-      m.x += dx / d * m.sp * dt;
-      m.y += dy / d * m.sp * dt;
-    }
-    if (d < m.r + P.r && m.acd <= 0) {
-      P.hp -= 8; P.fl = 8; m.acd = 40;
-    }
+    if (d > 1) { m.x += dx / d * m.sp * dt; m.y += dy / d * m.sp * dt; }
+    if (d < m.r + P.r && m.acd <= 0) { P.hp -= 8; P.fl = 8; m.acd = 40; }
     
-    // 花瓣攻击判定
     for (let p of P.pts) {
       if (p.cd > 0) continue;
-      let a = P.ang + p.o, px = P.x + Math.cos(a) * currentPetalRadius, py = P.y + Math.sin(a) * currentPetalRadius;
+      let a = P.ang + p.o;
+      let px = P.x + Math.cos(a) * currentPetalRadius;
+      let py = P.y + Math.sin(a) * currentPetalRadius;
       if (dst({ x: px, y: py }, m) < p.r + m.r) {
         m.hp -= 12; m.fl = 8; p.cd = 20; break;
       }
     }
-    if (m.hp <= 0) {
-      D.push({ x: m.x, y: m.y, r: 8, t: 0 });
-      M.splice(i, 1);
-    }
+    if (m.hp <= 0) { D.push({ x: m.x, y: m.y, r: 8, t: 0 }); M.splice(i, 1); }
   }
 
   for (let i = D.length - 1; i >= 0; i--) {
     let d = D[i]; d.t += dt;
-    if (dst(d, P) < P.r + d.r) {
-      P.n = Math.min(P.n + 1, 10); initP(P.n); D.splice(i, 1);
-    }
+    if (dst(d, P) < P.r + d.r) { P.n = Math.min(P.n + 1, 10); initP(P.n); D.splice(i, 1); }
   }
   
   if (P.hp <= 0) {
-    P.hp = P.mhp; P.x = W / 2; P.y = H / 2; M.length = 0; P.n = 5; initP(5);
+    P.hp = P.mhp; P.x = W / 2; P.y = H / 2; P.vx = 0; P.vy = 0;
+    M.length = 0; P.n = 5; initP(5);
   }
   if (P.fl > 0) P.fl -= dt;
 }
@@ -258,102 +358,79 @@ function draw() {
     ctx.fill();
   });
 
-  // 玩家本体
-  ctx.save(); ctx.translate(P.x, P.y); ctx.rotate(P.face);
-  ctx.beginPath(); ctx.arc(0, 0, P.r, .5, 5.8); ctx.lineTo(P.r + 6, 0); ctx.closePath();
-  ctx.fillStyle = P.fl > 0 ? '#f44' : '#4dabf7'; ctx.fill();
-  ctx.restore();
+  // 玩家本体（圆球，去掉了尖角）
+  ctx.beginPath();
+  ctx.arc(P.x, P.y, P.r, 0, 7);
+  ctx.fillStyle = P.fl > 0 ? '#f44' : '#4dabf7';
+  ctx.fill();
+  ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke();
+
+  // 卫星指示箭头
+  if (settings.showArrow && (Math.abs(P.vx) > 0.5 || Math.abs(P.vy) > 0.5)) {
+    let angle = Math.atan2(P.vy, P.vx);
+    let dist = P.r + 15; // 卫星距离
+    let ax = P.x + Math.cos(angle) * dist;
+    let ay = P.y + Math.sin(angle) * dist;
+    
+    ctx.save();
+    ctx.translate(ax, ay);
+    ctx.rotate(angle);
+    ctx.beginPath();
+    ctx.moveTo(8, 0); ctx.lineTo(-4, -6); ctx.lineTo(-4, 6); ctx.closePath();
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+    ctx.fill();
+    ctx.restore();
+  }
 
   // 绘制摇杆
-  if (showUI || joy.act) {
-    if (isFixed && !joy.act) {
+  if (settings.showUI || joy.act) {
+    if (settings.joyMode === 'fixed' && !joy.act) {
       drawJoy(FX, FY, FX, FY, 0, 0, false);
     } else if (joy.act) {
       drawJoy(joy.bx, joy.by, joy.kx, joy.ky, joy.dx, joy.dy, true);
     }
   }
 
-  // 绘制右侧带数字指针
-  if (ptr.act) {
-    let dx = ptr.x - ptr.sx, dy = ptr.y - ptr.sy;
-    let dist = Math.hypot(dx, dy);
-    let angle = Math.atan2(dy, dx);
+  // 绘制左上角玩家信息
+  if (settings.showUI) {
+    let hx = 60, hy = 60;
     
+    // 头像（纯圆球无尖角）
     ctx.beginPath();
-    ctx.moveTo(ptr.sx, ptr.sy);
-    ctx.lineTo(ptr.x, ptr.y);
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
-    ctx.lineWidth = 3;
-    ctx.stroke();
-    
-    // 画箭头
-    ctx.save();
-    ctx.translate(ptr.x, ptr.y);
-    ctx.rotate(angle);
-    ctx.beginPath();
-    ctx.moveTo(10, 0); ctx.lineTo(-5, -8); ctx.lineTo(-5, 8);
-    ctx.fillStyle = '#fff'; ctx.fill();
-    ctx.restore();
+    ctx.arc(hx, hy, 20, 0, 7);
+    ctx.fillStyle = P.fl > 0 ? '#f44' : '#4dabf7';
+    ctx.fill();
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.stroke();
 
-    // 显示距离数字
-    if (dist > 10) {
-      ctx.font = '16px monospace';
-      ctx.fillStyle = '#fff';
-      ctx.textAlign = 'center';
-      ctx.fillText(Math.round(dist), (ptr.sx + ptr.x) / 2, (ptr.sy + ptr.y) / 2 - 15);
-    }
-  }
-
-  // 绘制右上角玩家头像和血条
-  if (showUI) {
-    let hx = W - 80, hy = 50;
-    
-    // 画头像
-    ctx.save(); ctx.translate(hx, hy); ctx.rotate(P.face);
-    ctx.beginPath(); ctx.arc(0, 0, 14, .5, 5.8); ctx.lineTo(14 + 6, 0); ctx.closePath();
-    ctx.fillStyle = P.fl > 0 ? '#f44' : '#4dabf7'; ctx.fill();
-    ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke();
-    ctx.restore();
-
-    // 画血条底框
+    // 血条底框
     ctx.fillStyle = 'rgba(0,0,0,0.5)';
-    ctx.fillRect(hx + 25, hy - 10, 100, 20);
+    ctx.fillRect(hx + 30, hy - 12, 120, 24);
     
-    // 画血条
+    // 血条
     ctx.fillStyle = '#f44';
-    ctx.fillRect(hx + 25, hy - 10, 100 * Math.max(0, P.hp / P.mhp), 20);
+    ctx.fillRect(hx + 30, hy - 12, 120 * Math.max(0, P.hp / P.mhp), 24);
     
-    // 显示血量数字
+    // 血量数字
     ctx.fillStyle = '#fff';
-    ctx.font = '14px monospace';
+    ctx.font = 'bold 14px monospace';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    ctx.fillText(`${Math.round(P.hp)}/${P.mhp}`, hx + 30, hy + 1);
+    ctx.fillText(`${Math.round(P.hp)}/${P.mhp}`, hx + 40, hy + 1);
   }
 }
 
-function drawJoy(bx, by, kx, ky, dx, dy, showArrow) {
-  ctx.globalAlpha = showArrow ? 1 : 0.3;
+function drawJoy(bx, by, kx, ky, dx, dy, active) {
+  ctx.globalAlpha = active ? 1 : 0.3;
   // 底盘
   ctx.beginPath(); ctx.arc(bx, by, JR, 0, 7);
   ctx.fillStyle = 'rgba(255,255,255,0.1)'; ctx.fill();
-  ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.strokeStyle = 'rgba(255,255,255,0.4)'; ctx.lineWidth = 2; ctx.stroke();
   
-  // 摇杆头
-  ctx.beginPath(); ctx.arc(kx, ky, KR, 0, 7);
-  ctx.fillStyle = 'rgba(77, 171, 247, 0.8)'; ctx.fill();
-  ctx.strokeStyle = '#fff'; ctx.stroke();
-
-  // 箭头（贴在小球上）
-  if (showArrow && (dx !== 0 || dy !== 0)) {
-    let angle = Math.atan2(dy, dx);
-    ctx.save();
-    ctx.translate(kx + Math.cos(angle) * KR, ky + Math.sin(angle) * KR);
-    ctx.rotate(angle);
-    ctx.beginPath();
-    ctx.moveTo(12, 0); ctx.lineTo(-4, -10); ctx.lineTo(-4, 10); ctx.closePath();
-    ctx.fillStyle = '#fff'; ctx.fill();
-    ctx.restore();
+  // 摇杆头 (根据设置决定是否画)
+  if (settings.joyLook === 'head') {
+    ctx.beginPath(); ctx.arc(kx, ky, KR, 0, 7);
+    ctx.fillStyle = 'rgba(77, 171, 247, 0.8)'; ctx.fill();
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke();
   }
   ctx.globalAlpha = 1;
 }
