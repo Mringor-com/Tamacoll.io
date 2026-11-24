@@ -3,78 +3,57 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>花瓣游戏 - 终极神作版</title>
+<title>花瓣游戏 - 神作版</title>
 <style>
-  body { margin: 0; overflow: hidden; background: #111; touch-action: none; user-select: none; font-family: sans-serif; color: #fff; }
+  body { margin: 0; overflow: hidden; background: #1a1a2e; touch-action: none; user-select: none; font-family: sans-serif; color: #fff; }
   canvas { display: block; }
-  
-  /* UI 基础样式 */
-  .ui-btn { position: fixed; display: flex; justify-content: center; align-items: center; font-weight: bold; z-index: 10; border-radius: 50%; border: 2px solid rgba(255,255,255,0.5); transition: transform 0.1s, background 0.1s, opacity 0.2s; }
+  .ui-btn { position: fixed; display: flex; justify-content: center; align-items: center; font-weight: bold; z-index: 10; border-radius: 50%; border: 2px solid rgba(255,255,255,0.5); transition: transform 0.1s; }
   .ui-btn:active { transform: scale(0.95); }
-  
-  /* 默认位置 */
   #btnA { width: 70px; height: 70px; bottom: 120px; right: 30px; font-size: 28px; }
   #btnB { width: 70px; height: 70px; bottom: 30px; right: 120px; font-size: 28px; }
-  #btnSettings { position: fixed; top: 20px; right: 20px; width: 45px; height: 45px; border-radius: 10px; background: rgba(255,255,255,0.2); border: 2px solid rgba(255,255,255,0.5); display: flex; justify-content: center; align-items: center; font-size: 24px; z-index: 100; cursor: pointer; transition: transform 0.2s, left 0.2s, top 0.2s; }
-  #minimapUI { position: fixed; top: 20px; right: 80px; width: 80px; height: 80px; background: rgba(0,0,0,0.6); border: 2px solid #4dabf7; border-radius: 5px; z-index: 50; transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); }
+  #btnSettings { position: fixed; top: 20px; right: 20px; width: 45px; height: 45px; border-radius: 12px; background: rgba(255,255,255,0.2); border: 2px solid rgba(255,255,255,0.5); display: flex; justify-content: center; align-items: center; font-size: 24px; z-index: 100; cursor: pointer; transition: all 0.3s; }
   
-  /* 面板通用样式与动画 */
-  .panel { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.9); opacity: 0; pointer-events: none; background: rgba(20, 25, 40, 0.95); border: 2px solid #4dabf7; border-radius: 15px; padding: 20px; z-index: 200; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.8); transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s; }
+  .panel { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.9); opacity: 0; pointer-events: none; background: rgba(20, 25, 40, 0.95); border: 2px solid #4dabf7; border-radius: 20px; padding: 20px; z-index: 200; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.8); transition: transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.25s; }
   .panel.show { transform: translate(-50%, -50%) scale(1); opacity: 1; pointer-events: auto; }
   .panel h2 { margin: 0 0 10px 0; text-align: center; color: #4dabf7; font-size: 20px; }
   .setting-row { display: flex; justify-content: space-between; align-items: center; font-size: 15px; width: 100%; gap: 15px; }
-  .setting-row button { padding: 6px 12px; border-radius: 5px; border: none; background: #4dabf7; color: #fff; font-weight: bold; cursor: pointer; min-width: 80px; }
-  .setting-row input[type="range"] { flex: 1; margin: 0 10px; }
-  
-  /* 关闭按钮 */
-  .close-x { position: absolute; top: 10px; right: 15px; font-size: 24px; color: #ff6b9d; cursor: pointer; font-weight: bold; z-index: 10; }
-  .close-x:hover { color: #fff; }
-  
+  .setting-row button { padding: 8px 12px; border-radius: 10px; border: none; background: #4dabf7; color: #fff; font-weight: bold; cursor: pointer; min-width: 80px; transition: 0.2s; }
+  .setting-row button:active { transform: scale(0.95); }
+  .setting-row input[type="range"] { flex: 1; margin: 0 10px; accent-color: #4dabf7; }
+  .close-x { position: absolute; top: 10px; right: 15px; font-size: 24px; color: #ff6b9d; cursor: pointer; font-weight: bold; }
   #settingsPanel { width: 85%; max-width: 350px; }
   
-  /* 键位调整模式专用面板 (可拖动、可折叠) */
-  #layoutPanel { top: 10px; left: 10px; transform: scale(0.9); opacity: 0; pointer-events: none; padding: 15px; width: 220px; border-color: #ffd93d; }
+  #layoutPanel { top: 15px; left: 15px; transform: scale(0.9); opacity: 0; pointer-events: none; padding: 15px; width: 240px; border-color: #ffd93d; border-radius: 15px; }
   #layoutPanel.show { transform: scale(1); opacity: 1; pointer-events: auto; }
   #layoutPanel.collapsed .panel-content { display: none; }
   #layoutPanel.collapsed h2 { margin: 0; font-size: 16px; }
   #toggleCollapse { background: transparent; border: none; color: #fff; font-size: 18px; cursor: pointer; padding: 0; min-width: 30px; }
   #layoutPanel-header { cursor: move; display: flex; justify-content: space-between; align-items: center; width: 100%; border-bottom: 1px solid rgba(255,255,255,0.2); padding-bottom: 5px; margin-bottom: 10px; }
-  .hidden { display: none !important; }
   .dragging { border: 2px dashed #ffd93d !important; box-shadow: 0 0 15px #ffd93d; z-index: 999; }
 </style>
 </head>
 <body>
 <canvas id="c"></canvas>
-
-<!-- 右下角技能键 -->
 <div id="btnA" class="ui-btn">A</div>
 <div id="btnB" class="ui-btn">B</div>
-
-<!-- 右上角设置按钮与迷你小地图底框 -->
 <div id="btnSettings">⚙️</div>
-<div id="minimapUI"></div>
 
-<!-- 主设置面板 -->
 <div id="settingsPanel" class="panel">
   <span class="close-x" onclick="closeSettingsPanel()">×</span>
   <h2>游戏设置</h2>
   <div class="setting-row"><span>摇杆模式</span><button id="setJoyMode">动态</button></div>
   <div class="setting-row"><span>按键模式</span><button id="setKeyMode">长按</button></div>
   <div class="setting-row"><span>屏幕方向</span><button id="setScreen">自由</button></div>
-  <div class="setting-row"><span>隐藏按键/UI</span><button id="setUI">显示</button></div>
+  <div class="setting-row"><span>卫星箭头</span><button id="setArrowStyle">样式1</button></div>
   <div class="setting-row"><span>自定义键位</span><button id="enterLayoutMode" style="background:#ff6b9d;">进入调整</button></div>
 </div>
 
-<!-- 键位调整面板 -->
 <div id="layoutPanel" class="panel">
-  <div id="layoutPanel-header">
-    <h2>调整键位</h2>
-    <button id="toggleCollapse">▼</button>
-  </div>
+  <div id="layoutPanel-header"><h2>调整键位</h2><button id="toggleCollapse">▼</button></div>
   <div class="panel-content" id="layoutContent">
-    <p style="font-size:12px; color:#aaa; margin:0 0 10px 0;">点击游戏内元素调出设置，拖拽调整位置：</p>
+    <p style="font-size:12px; color:#aaa; margin:0 0 10px 0;">点击场景元素调专属设置：</p>
     <div id="dynamicSettings" style="display:flex; flex-direction:column; gap:10px;"></div>
-    <button class="close-btn" id="exitLayoutMode" style="margin-top:10px; padding:10px; border-radius:8px; border:none; background:#ff6b9d; color:#fff; font-weight:bold;">保存并退出</button>
+    <button class="close-btn" id="exitLayoutMode" style="margin-top:10px; padding:10px; border-radius:10px; border:none; background:#ff6b9d; color:#fff; font-weight:bold;">保存并退出</button>
   </div>
 </div>
 
@@ -85,62 +64,36 @@ let W, H;
 function resize() { W = cvs.width = window.innerWidth; H = cvs.height = window.innerHeight; }
 resize(); window.addEventListener('resize', resize);
 
-// ================= 全局状态 =================
+// 状态配置
 let settings = {
-  joyMode: 'dynamic', keyMode: 'hold', screen: 'free', showUI: true, isLayoutMode: false,
+  joyMode: 'dynamic', keyMode: 'hold', screen: 'free', isLayoutMode: false, showUI: true,
+  arrowStyle: 1, 
   joyCfg: { size: 1, alpha: 1, showHead: true },
-  btnACfg: { size: 1, alpha: 1 }, btnBCfg: { size: 1, alpha: 1 },
-  arrowCfg: { show: true },
-  uiCfg: { gearSize: 1, mapSize: 1, hpSize: 1 } // 新增：齿轮、小地图、左上角血条缩放
+  btnACfg: { size: 1, alpha: 1 },
+  btnBCfg: { size: 1, alpha: 1 },
+  hpCfg: { size: 1, alpha: 1, showNumber: true },
+  monstCfg: { alpha: 1, showHpBar: true, showHpNum: true },
+  gearCfg: { size: 1, alpha: 1 }
 };
 
-const WORLD_W = 2000, WORLD_H = 2000;
-let cam = { x: 0, y: 0 };
-const MAP_MARGIN = 50;
+const btnA = document.getElementById('btnA'), btnB = document.getElementById('btnB'), btnSettings = document.getElementById('btnSettings');
+const settingsPanel = document.getElementById('settingsPanel'), layoutPanel = document.getElementById('layoutPanel'), dynamicSettings = document.getElementById('dynamicSettings');
 
-// DOM 元素
-const btnA = document.getElementById('btnA');
-const btnB = document.getElementById('btnB');
-const btnSettings = document.getElementById('btnSettings');
-const minimapUI = document.getElementById('minimapUI');
-const settingsPanel = document.getElementById('settingsPanel');
-const layoutPanel = document.getElementById('layoutPanel');
-const dynamicSettings = document.getElementById('dynamicSettings');
+function openSettingsPanel() { settingsPanel.classList.add('show'); }
+function closeSettingsPanel() { settingsPanel.classList.remove('show'); applyScreenOrientation(); }
+btnSettings.onclick = () => { if(!settings.isLayoutMode) openSettingsPanel(); };
 
-// ================= 面板显隐控制 =================
-function openSettingsPanel() {
-  settingsPanel.classList.add('show');
-}
-function closeSettingsPanel() {
-  settingsPanel.classList.remove('show');
-  applyScreenOrientation();
-}
-btnSettings.onclick = openSettingsPanel;
-
-// 点击空白关闭
-window.addEventListener('touchstart', (e) => {
-  if (e.target === cvs) {
-    if (settingsPanel.classList.contains('show')) closeSettingsPanel();
-  }
-});
-
-// 设置面板按钮逻辑
-const btnSetJoy = document.getElementById('setJoyMode');
-const btnSetKey = document.getElementById('setKeyMode');
-const btnSetScreen = document.getElementById('setScreen');
-const btnSetUI = document.getElementById('setUI');
+const btnSetJoy = document.getElementById('setJoyMode'), btnSetKey = document.getElementById('setKeyMode'), btnSetScreen = document.getElementById('setScreen'), btnSetArrow = document.getElementById('setArrowStyle');
 function updateUIButtons() {
   btnSetJoy.innerText = settings.joyMode === 'dynamic' ? '动态' : '固定';
   btnSetKey.innerText = settings.keyMode === 'hold' ? '长按' : '点击';
   btnSetScreen.innerText = settings.screen === 'free' ? '自由' : (settings.screen === 'landscape' ? '横屏' : '竖屏');
-  btnSetUI.innerText = settings.showUI ? '显示' : '隐藏';
-  const els = [btnA, btnB];
-  els.forEach(el => settings.showUI ? el.classList.remove('hidden') : el.classList.add('hidden'));
+  btnSetArrow.innerText = `样式${settings.arrowStyle}`;
 }
 btnSetJoy.onclick = () => { settings.joyMode = settings.joyMode === 'dynamic' ? 'fixed' : 'dynamic'; updateUIButtons(); resetJoy(); };
 btnSetKey.onclick = () => { settings.keyMode = settings.keyMode === 'hold' ? 'click' : 'hold'; updateUIButtons(); };
 btnSetScreen.onclick = () => { settings.screen = settings.screen === 'free' ? 'landscape' : (settings.screen === 'landscape' ? 'portrait' : 'free'); updateUIButtons(); };
-btnSetUI.onclick = () => { settings.showUI = !settings.showUI; updateUIButtons(); };
+btnSetArrow.onclick = () => { settings.arrowStyle = settings.arrowStyle % 4 + 1; updateUIButtons(); };
 updateUIButtons();
 
 function applyScreenOrientation() {
@@ -149,37 +102,27 @@ function applyScreenOrientation() {
   else { if (screen.orientation && screen.orientation.unlock) screen.orientation.unlock(); }
 }
 
-// ================= 自定义键位系统 =================
+// 自定义沙盒模式
 document.getElementById('enterLayoutMode').onclick = () => {
-  closeSettingsPanel();
-  layoutPanel.classList.add('show');
-  settings.isLayoutMode = true;
-  dynamicSettings.innerHTML = '<p style="font-size:12px; color:#aaa;">点击场景中的元素进行专属调整</p>';
+  closeSettingsPanel(); layoutPanel.classList.add('show'); settings.isLayoutMode = true;
+  dynamicSettings.innerHTML = '<p style="font-size:12px; color:#aaa;">点击场景元素进行专属调整</p>';
 };
 document.getElementById('exitLayoutMode').onclick = () => {
-  layoutPanel.classList.remove('show');
-  settings.isLayoutMode = false;
-  document.querySelectorAll('.dragging').forEach(el => el.classList.remove('dragging'));
-  updateUIVisuals();
+  layoutPanel.classList.remove('show'); settings.isLayoutMode = false;
+  document.querySelectorAll('.dragging').forEach(el => el.classList.remove('dragging')); updateUIVisuals();
 };
 document.getElementById('toggleCollapse').onclick = () => {
   layoutPanel.classList.toggle('collapsed');
   document.getElementById('toggleCollapse').innerText = layoutPanel.classList.contains('collapsed') ? '▲' : '▼';
 };
 
-// 拖动调整面板
 let isDraggingPanel = false, panelStartX, panelStartY, panelInitX, panelInitY;
 document.getElementById('layoutPanel-header').addEventListener('touchstart', e => {
-  isDraggingPanel = true;
-  let t = e.touches[0];
+  isDraggingPanel = true; let t = e.touches[0];
   panelStartX = t.clientX; panelStartY = t.clientY;
-  let rect = layoutPanel.getBoundingClientRect();
-  panelInitX = rect.left; panelInitY = rect.top;
-  layoutPanel.style.transform = 'none'; // 移除居中偏移
-  layoutPanel.style.left = panelInitX + 'px';
-  layoutPanel.style.top = panelInitY + 'px';
+  let rect = layoutPanel.getBoundingClientRect(); panelInitX = rect.left; panelInitY = rect.top;
+  layoutPanel.style.transform = 'none'; layoutPanel.style.left = panelInitX + 'px'; layoutPanel.style.top = panelInitY + 'px';
 }, {passive: false});
-
 window.addEventListener('touchmove', e => {
   if (isDraggingPanel) {
     let t = e.touches[0];
@@ -189,7 +132,6 @@ window.addEventListener('touchmove', e => {
 }, {passive: false});
 window.addEventListener('touchend', () => isDraggingPanel = false);
 
-// 动态生成滑块
 function buildSlider(label, val, min, max, cb) {
   let div = document.createElement('div'); div.className = 'setting-row';
   div.innerHTML = `<span>${label}: <span>${Math.round(val*100)}%</span></span>`;
@@ -201,8 +143,7 @@ function buildSlider(label, val, min, max, cb) {
 function updateUIVisuals() {
   btnA.style.transform = `scale(${settings.btnACfg.size})`; btnA.style.opacity = settings.btnACfg.alpha;
   btnB.style.transform = `scale(${settings.btnBCfg.size})`; btnB.style.opacity = settings.btnBCfg.alpha;
-  btnSettings.style.transform = `scale(${settings.uiCfg.gearSize})`;
-  minimapUI.style.transform = `scale(${settings.uiCfg.mapSize})`;
+  btnSettings.style.transform = `scale(${settings.gearCfg.size})`; btnSettings.style.opacity = settings.gearCfg.alpha;
 }
 
 function selectUIElement(target) {
@@ -216,43 +157,40 @@ function selectUIElement(target) {
     let btn = document.createElement('button'); btn.innerText = '小球: ' + (settings.joyCfg.showHead ? '显示' : '隐藏');
     btn.onclick = () => { settings.joyCfg.showHead = !settings.joyCfg.showHead; btn.innerText = '小球: ' + (settings.joyCfg.showHead ? '显示' : '隐藏'); };
     dynamicSettings.appendChild(btn);
-    let btnMode = document.createElement('button'); btnMode.innerText = '模式: ' + (settings.joyMode === 'dynamic'?'动态':'固定');
-    btnMode.onclick = () => { settings.joyMode = settings.joyMode === 'dynamic' ? 'fixed' : 'dynamic'; btnMode.innerText = '模式: ' + (settings.joyMode === 'dynamic'?'动态':'固定'); };
-    dynamicSettings.appendChild(btnMode);
-  } else if (target === 'btnA' || target === 'btnB') {
-    let el = target === 'btnA' ? btnA : btnB; el.classList.add('dragging');
-    let cfg = target === 'btnA' ? settings.btnACfg : settings.btnBCfg;
-    dynamicSettings.innerHTML = `<h3 style="margin:0; color:#4dabf7;">${target === 'btnA' ? 'A' : 'B'}键设置</h3>`;
-    dynamicSettings.appendChild(buildSlider('大小', cfg.size, 0.5, 1.5, v => {cfg.size = v; updateUIVisuals();}));
-    dynamicSettings.appendChild(buildSlider('透明度', cfg.alpha, 0.1, 1, v => {cfg.alpha = v; updateUIVisuals();}));
+  } else if (target === 'hpbar') {
+    dynamicSettings.innerHTML = '<h3 style="margin:0; color:#4dabf7;">左上角头像/血条</h3>';
+    dynamicSettings.appendChild(buildSlider('大小', settings.hpCfg.size, 0.5, 1.5, v => settings.hpCfg.size = v));
+    dynamicSettings.appendChild(buildSlider('透明度', settings.hpCfg.alpha, 0.1, 1, v => settings.hpCfg.alpha = v));
+    let btn = document.createElement('button'); btn.innerText = '血量数值: ' + (settings.hpCfg.showNumber ? '显示' : '隐藏');
+    btn.onclick = () => { settings.hpCfg.showNumber = !settings.hpCfg.showNumber; btn.innerText = '血量数值: ' + (settings.hpCfg.showNumber ? '显示' : '隐藏'); };
+    dynamicSettings.appendChild(btn);
   } else if (target === 'player') {
     dynamicSettings.innerHTML = '<h3 style="margin:0; color:#4dabf7;">玩家箭头设置</h3>';
-    let btn = document.createElement('button'); btn.innerText = '卫星箭头: ' + (settings.arrowCfg.show ? '显示' : '隐藏');
-    btn.onclick = () => { settings.arrowCfg.show = !settings.arrowCfg.show; btn.innerText = '卫星箭头: ' + (settings.arrowCfg.show ? '显示' : '隐藏'); };
+    let btn = document.createElement('button'); btn.innerText = '切换样式 (当前:' + settings.arrowStyle + ')';
+    btn.onclick = () => { settings.arrowStyle = settings.arrowStyle % 4 + 1; btn.innerText = '切换样式 (当前:' + settings.arrowStyle + ')'; };
     dynamicSettings.appendChild(btn);
-  } else if (target === 'hpbar') {
-    dynamicSettings.innerHTML = '<h3 style="margin:0; color:#4dabf7;">左上角血条设置</h3>';
-    dynamicSettings.appendChild(buildSlider('大小', settings.uiCfg.hpSize, 0.5, 1.5, v => settings.uiCfg.hpSize = v));
+  } else if (target === 'fakeMonster') {
+    dynamicSettings.innerHTML = '<h3 style="margin:0; color:#4dabf7;">假怪血条设置</h3>';
+    dynamicSettings.appendChild(buildSlider('透明度', settings.monstCfg.alpha, 0.1, 1, v => settings.monstCfg.alpha = v));
+    let btn1 = document.createElement('button'); btn1.innerText = '显示血条: ' + (settings.monstCfg.showHpBar?'开':'关');
+    btn1.onclick = () => { settings.monstCfg.showHpBar = !settings.monstCfg.showHpBar; btn1.innerText = '显示血条: ' + (settings.monstCfg.showHpBar?'开':'关'); };
+    let btn2 = document.createElement('button'); btn2.innerText = '显示数值: ' + (settings.monstCfg.showHpNum?'开':'关');
+    btn2.onclick = () => { settings.monstCfg.showHpNum = !settings.monstCfg.showHpNum; btn2.innerText = '显示数值: ' + (settings.monstCfg.showHpNum?'开':'关'); };
+    dynamicSettings.appendChild(btn1); dynamicSettings.appendChild(btn2);
   } else if (target === 'gear') {
     btnSettings.classList.add('dragging');
-    dynamicSettings.innerHTML = '<h3 style="margin:0; color:#4dabf7;">设置按钮设置</h3>';
-    dynamicSettings.appendChild(buildSlider('大小', settings.uiCfg.gearSize, 0.5, 1.5, v => {settings.uiCfg.gearSize = v; updateUIVisuals();}));
-  } else if (target === 'map') {
-    minimapUI.classList.add('dragging');
-    dynamicSettings.innerHTML = '<h3 style="margin:0; color:#4dabf7;">小地图设置</h3>';
-    dynamicSettings.appendChild(buildSlider('大小', settings.uiCfg.mapSize, 0.5, 2.0, v => {settings.uiCfg.mapSize = v; updateUIVisuals();}));
+    dynamicSettings.innerHTML = '<h3 style="margin:0; color:#4dabf7;">设置齿轮</h3>';
+    dynamicSettings.appendChild(buildSlider('大小', settings.gearCfg.size, 0.5, 1.5, v => {settings.gearCfg.size = v; updateUIVisuals();}));
+    dynamicSettings.appendChild(buildSlider('透明度', settings.gearCfg.alpha, 0.1, 1, v => {settings.gearCfg.alpha = v; updateUIVisuals();}));
   }
 }
 
-// 拖拽 A/B 键
 function initDrag(el, type) {
   el.addEventListener('touchstart', e => {
     if (!settings.isLayoutMode) return;
     e.preventDefault(); e.stopPropagation();
-    let t = e.touches[0];
-    let startX = t.clientX, startY = t.clientY;
-    let rect = el.getBoundingClientRect();
-    selectUIElement(type);
+    let t = e.touches[0]; let startX = t.clientX, startY = t.clientY;
+    let rect = el.getBoundingClientRect(); selectUIElement(type);
     function onMove(me) {
       let mt = me.touches[0];
       el.style.left = (rect.left + mt.clientX - startX) + 'px';
@@ -260,20 +198,14 @@ function initDrag(el, type) {
       el.style.bottom = 'auto'; el.style.right = 'auto';
     }
     function onEnd() { window.removeEventListener('touchmove', onMove); window.removeEventListener('touchend', onEnd); }
-    window.addEventListener('touchmove', onMove, {passive: false});
-    window.addEventListener('touchend', onEnd);
+    window.addEventListener('touchmove', onMove, {passive: false}); window.addEventListener('touchend', onEnd);
   }, {passive: false});
 }
-initDrag(btnA, 'btnA'); initDrag(btnB, 'btnB');
+initDrag(btnA, 'btnA'); initDrag(btnB, 'btnB'); initDrag(btnSettings, 'gear');
 
-// ================= 游戏核心状态 =================
-const P = {
-  x: WORLD_W/2, y: WORLD_H/2, r: 16, vx: 0, vy: 0,
-  accel: 0.45, friction: 0.86, maxSpeed: 4.0, // 降速、增加摩擦、减速
-  hp: 100, mhp: 100, displayHp: 100,
-  pts: [], n: 5, ang: 0, fl: 0
-};
-function initP(n) { P.pts = []; for (let i = 0; i < n; i++) P.pts.push({ o: i * (Math.PI * 2 / n), cd: 0, r: 10 }); }
+// 游戏核心
+const P = { x: 500, y: 500, r: 16, vx: 0, vy: 0, accel: 0.45, friction: 0.86, maxSpeed: 4.0, hp: 100, mhp: 100, displayHp: 100, pts: [], n: 5, ang: 0, fl: 0 };
+function initP(n) { P.pts = []; for (let i = 0; i < n; i++) P.pts.push({ o: i * (Math.PI * 2 / n), cd: 0, r: 12 }); }
 initP(P.n);
 
 const M = [], D = [];
@@ -281,20 +213,11 @@ const rnd = (a, b) => a + Math.random() * (b - a);
 const dst = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 
 function spawn() {
-  let x = rnd(MAP_MARGIN+50, WORLD_W-MAP_MARGIN-50), y = rnd(MAP_MARGIN+50, WORLD_H-MAP_MARGIN-50);
-  let aiType = Math.floor(rnd(0, 4)); // 0:死靶子 1:散步 2:靠近追 3:挨打追
-  let baseSpeed = rnd(1.0, 1.8); // 整体比之前快
-  let chaseSpeed = Math.min(rnd(1.5, 2.5), P.maxSpeed); // 追击速度不超玩家
-  
-  M.push({ 
-    x, y, r: rnd(14, 22), hp: 40, mhp: 40, 
-    sp: baseSpeed, chSp: chaseSpeed, 
-    c: `hsl(${rnd(0, 360)},70%,55%)`, fl: 0, acd: 0,
-    ai: aiType, state: 0, wanderAngle: rnd(0, 6.28)
-  });
+  let x = rnd(100, 900), y = rnd(100, 900), aiType = Math.floor(rnd(0, 4)); 
+  let baseSpeed = rnd(1.0, 1.8), chaseSpeed = Math.min(rnd(1.5, 2.5), P.maxSpeed);
+  M.push({ x, y, r: rnd(14, 22), hp: 40, mhp: 40, sp: baseSpeed, chSp: chaseSpeed, c: `hsl(${rnd(0, 360)},70%,55%)`, fl: 0, acd: 0, ai: aiType, state: 0, wanderAngle: rnd(0, 6.28) });
 }
 
-// ================= 触摸/摇杆控制 =================
 let joy = { act: false, bx: 0, by: 0, kx: 0, ky: 0, dx: 0, dy: 0, id: null };
 let JR = 60, KR = 30, FX = 100, FY = H - 120;
 function resetJoy() { joy.act = false; joy.dx = 0; joy.dy = 0; joy.id = null; }
@@ -304,19 +227,10 @@ cvs.addEventListener('touchstart', e => {
   const t = e.changedTouches[0]; const tx = t.clientX, ty = t.clientY;
   
   if (settings.isLayoutMode) {
-    if (tx > W - 200 && ty > H - 200) return; // 排除 A/B 键
-    // 点击判定：头像、齿轮、小地图、玩家本体
-    let hx = 60 * settings.uiCfg.hpSize, hy = 60 * settings.uiCfg.hpSize, hr = 20 * settings.uiCfg.hpSize;
+    let hx = 60 * settings.hpCfg.size, hy = 60 * settings.hpCfg.size, hr = 20 * settings.hpCfg.size;
     if (Math.hypot(tx - hx, ty - hy) < hr + 20) { selectUIElement('hpbar'); return; }
-    
-    let rectGear = btnSettings.getBoundingClientRect();
-    if (tx > rectGear.left && tx < rectGear.right && ty > rectGear.top && ty < rectGear.bottom) { selectUIElement('gear'); return; }
-
-    let rectMap = minimapUI.getBoundingClientRect();
-    if (tx > rectMap.left && tx < rectMap.right && ty > rectMap.top && ty < rectMap.bottom) { selectUIElement('map'); return; }
-    
     if (Math.hypot(tx - W/2, ty - H/2) < P.r + 20) { selectUIElement('player'); return; }
-    if (Math.hypot(tx - (W/2+100), ty - H/2) < 30) { selectUIElement('player'); return; } // 点击旁边的假怪也调玩家
+    if (Math.hypot(tx - (W/2+100), ty - H/2) < 30) { selectUIElement('fakeMonster'); return; } 
   }
 
   if (joy.act) return;
@@ -343,7 +257,6 @@ cvs.addEventListener('touchend', e => {
   for (let i = 0; i < e.changedTouches.length; i++) if (e.changedTouches[i].identifier === joy.id) resetJoy();
 });
 
-// A/B 键逻辑
 let currentPetalRadius = 46;
 const maxPetalRadius = 90, minPetalRadius = 25;
 let isALong = false, isBLong = false, isAClicked = false, isBClicked = false;
@@ -359,38 +272,33 @@ btnB.addEventListener('touchend', e => { e.preventDefault(); if (settings.keyMod
 
 cvs.addEventListener('dblclick', () => { if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(()=>{}); });
 
-// ================= 主循环 =================
 let last = performance.now();
 function loop(now) {
-  let dt = Math.min((now - last) / 16.67, 2);
-  last = now;
-  upd(dt);
+  let dt = Math.min((now - last) / 16.67, 2); last = now;
+  if (!settings.isLayoutMode) upd(dt);
   draw();
   requestAnimationFrame(loop);
 }
 
 function upd(dt) {
-  // 调整模式依然可以动！
   let targetRadius = 46;
   if (isALong || isAClicked) targetRadius = maxPetalRadius;
   if (isBLong || isBClicked) targetRadius = minPetalRadius;
-  if (currentPetalRadius < targetRadius) currentPetalRadius = Math.min(currentPetalRadius + 3 * dt, targetRadius);
-  if (currentPetalRadius > targetRadius) currentPetalRadius = Math.max(currentPetalRadius - 3 * dt, targetRadius);
+  if (currentPetalRadius < targetRadius) currentPetalRadius = Math.min(currentPetalRadius + 6 * dt, targetRadius);
+  if (currentPetalRadius > targetRadius) currentPetalRadius = Math.max(currentPetalRadius - 6 * dt, targetRadius);
 
-  if (joy.act && !settings.isLayoutMode) {
-    P.vx += joy.dx * P.accel * dt; P.vy += joy.dy * P.accel * dt;
-  }
+  if (joy.act) { P.vx += joy.dx * P.accel * dt; P.vy += joy.dy * P.accel * dt; }
   P.vx *= Math.pow(P.friction, dt); P.vy *= Math.pow(P.friction, dt);
   let spd = Math.hypot(P.vx, P.vy);
   if (spd > P.maxSpeed) { P.vx = (P.vx / spd) * P.maxSpeed; P.vy = (P.vy / spd) * P.maxSpeed; }
   
   P.x += P.vx * dt; P.y += P.vy * dt;
-  if (P.x < MAP_MARGIN + P.r) { P.x = MAP_MARGIN + P.r; P.vx *= -0.5; }
-  if (P.x > WORLD_W - MAP_MARGIN - P.r) { P.x = WORLD_W - MAP_MARGIN - P.r; P.vx *= -0.5; }
-  if (P.y < MAP_MARGIN + P.r) { P.y = MAP_MARGIN + P.r; P.vy *= -0.5; }
-  if (P.y > WORLD_H - MAP_MARGIN - P.r) { P.y = WORLD_H - MAP_MARGIN - P.r; P.vy *= -0.5; }
+  if (P.x < 50) { P.x = 50; P.vx *= -0.5; }
+  if (P.x > 950) { P.x = 950; P.vx *= -0.5; }
+  if (P.y < 50) { P.y = 50; P.vy *= -0.5; }
+  if (P.y > 950) { P.y = 950; P.vy *= -0.5; }
 
-  if (P.displayHp > P.hp) P.displayHp -= 0.15 * dt; // 假血条减速
+  if (P.displayHp > P.hp) P.displayHp -= 0.15 * dt; 
   if (P.displayHp < P.hp) P.displayHp = P.hp;
 
   P.ang += .04 * dt; P.pts.forEach(p => { if (p.cd > 0) p.cd -= dt; });
@@ -402,16 +310,14 @@ function upd(dt) {
     if (m.acd > 0) m.acd -= dt;
     let dx = P.x - m.x, dy = P.y - m.y, d = Math.hypot(dx, dy);
 
-    // AI 逻辑
-    if (m.ai === 2 && d < 250) m.state = 1; // 靠近才动
-    if (m.ai === 3) { /* 挨打才动在花瓣判定里处理 */ }
-    
-    if (m.state === 1) {
-      if (d > 1) { m.x += dx / d * m.chSp * dt; m.y += dy / d * m.chSp * dt; }
-    } else if (m.ai === 1 || m.ai === 2 || m.ai === 3) { // 巡逻
+    if (m.ai === 2 && d < 250) m.state = 1; 
+    if (m.state === 1) { if (d > 1) { m.x += dx / d * m.chSp * dt; m.y += dy / d * m.chSp * dt; } }
+    else if (m.ai === 1 || m.ai === 2 || m.ai === 3) {
       m.wanderAngle += rnd(-0.1, 0.1);
       m.x += Math.cos(m.wanderAngle) * m.sp * dt;
       m.y += Math.sin(m.wanderAngle) * m.sp * dt;
+      if (m.x < 50) m.wanderAngle = 0; if (m.x > 950) m.wanderAngle = Math.PI;
+      if (m.y < 50) m.wanderAngle = Math.PI/2; if (m.y > 950) m.wanderAngle = -Math.PI/2;
     }
 
     if (d < m.r + P.r) {
@@ -420,19 +326,19 @@ function upd(dt) {
       P.x += Math.cos(angle) * overlap * 0.5; P.y += Math.sin(angle) * overlap * 0.5;
       m.x -= Math.cos(angle) * overlap * 0.5; m.y -= Math.sin(angle) * overlap * 0.5;
       P.vx += Math.cos(angle) * 2; P.vy += Math.sin(angle) * 2;
-      if (m.acd <= 0) { P.hp -= 8; P.fl = 8; m.acd = 15; } // 无敌帧调短
+      if (m.acd <= 0) { P.hp -= 8; P.fl = 8; m.acd = 15; }
     }
 
     for (let p of P.pts) {
       if (p.cd > 0) continue;
       let a = P.ang + p.o, px = P.x + Math.cos(a) * currentPetalRadius, py = P.y + Math.sin(a) * currentPetalRadius;
-      if (dst({ x: px, y: py }, m) < p.r + m.r) {
+      if (dst({ x: px, y: py }, m) < p.r + m.r) { // 这里的 p.r 已经变成了 12，碰撞箱与视觉一致
         m.hp -= 12; m.fl = 8; p.cd = 20; 
-        if (m.ai === 3) m.state = 1; // 挨打激活
+        if (m.ai === 3) m.state = 1; 
         break;
       }
     }
-    if (m.hp <= 0) { D.push({ x: m.x, y: m.y, r: 8, t: 30 }); M.splice(i, 1); } // 掉落物存活30秒
+    if (m.hp <= 0) { D.push({ x: m.x, y: m.y, r: 8, t: 30 }); M.splice(i, 1); }
   }
 
   for (let i = D.length - 1; i >= 0; i--) {
@@ -441,46 +347,62 @@ function upd(dt) {
     else if (d.t <= 0) { D.splice(i, 1); }
   }
   
-  if (P.hp <= 0) { // 死亡复活不退出调整模式
-    P.hp = P.mhp; P.displayHp = P.mhp; P.x = WORLD_W/2; P.y = WORLD_H/2; P.vx=0; P.vy=0;
-    M.length = 0; P.n = 5; initP(5);
-  }
+  if (P.hp <= 0) { P.hp = P.mhp; P.displayHp = P.mhp; P.x = 500; P.y = 500; P.vx=0; P.vy=0; M.length = 0; P.n = 5; initP(5); }
   if (P.fl > 0) P.fl -= dt;
 }
 
-// ================= 渲染 =================
 function draw() {
-  cam.x = P.x - W / 2; cam.y = P.y - H / 2;
   ctx.fillStyle = '#1a1a2e'; ctx.fillRect(0, 0, W, H);
-  ctx.save(); ctx.translate(-cam.x, -cam.y);
+  
+  if (settings.isLayoutMode) {
+    ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+    for (let i = 0; i < W; i += 40) { ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, H); ctx.stroke(); }
+    for (let i = 0; i < H; i += 40) { ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(W, i); ctx.stroke(); }
+    
+    drawPlayer(W/2, H/2);
+    let fx = W/2 + 100, fy = H/2;
+    ctx.beginPath(); ctx.arc(fx, fy, 20, 0, 7); ctx.fillStyle = '#888'; ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.lineWidth = 4; ctx.stroke();
+    
+    ctx.globalAlpha = settings.monstCfg.alpha;
+    if (settings.monstCfg.showHpBar) {
+      let w = 30; let barY = fy + 20 + 6;
+      ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.beginPath(); ctx.roundRect(fx - w/2, barY, w, 4, 2); ctx.fill();
+      ctx.fillStyle = '#f44'; ctx.beginPath(); ctx.roundRect(fx - w/2, barY, w * 0.5, 4, 2); ctx.fill();
+      if (settings.monstCfg.showHpNum) {
+        ctx.fillStyle = '#fff'; ctx.font = '10px monospace'; ctx.textAlign = 'center';
+        ctx.fillText('20/40', fx, barY - 4);
+      }
+    }
+    ctx.globalAlpha = 1;
+    drawJoy(FX, FY, FX, FY, 0, 0, true);
+    drawPlayerHUD();
+    return;
+  }
 
   ctx.strokeStyle = 'rgba(255,255,255,.05)';
-  for (let i = 0; i < WORLD_W; i += 40) { ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, WORLD_H); ctx.stroke(); }
-  for (let i = 0; i < WORLD_H; i += 40) { ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(WORLD_W, i); ctx.stroke(); }
+  for (let i = 0; i < W; i += 40) { ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, H); ctx.stroke(); }
+  for (let i = 0; i < H; i += 40) { ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(W, i); ctx.stroke(); }
 
-  ctx.strokeStyle = '#ff4444'; ctx.lineWidth = MAP_MARGIN * 2; ctx.strokeRect(0, 0, WORLD_W, WORLD_H);
+  ctx.strokeStyle = '#ff4444'; ctx.lineWidth = 4;
+  ctx.beginPath(); ctx.roundRect(50, 50, 900, 900, 30); ctx.stroke();
 
-  // 掉落物
   D.forEach(d => {
-    ctx.globalAlpha = d.t < 3 ? (Math.sin(d.t * 20) > 0 ? 1 : 0.2) : 1;
     ctx.beginPath(); ctx.arc(d.x, d.y, d.r, 0, 7); ctx.fillStyle = '#ffd93d'; ctx.fill();
   });
-  ctx.globalAlpha = 1;
 
-  // 怪物
   M.forEach(m => {
     ctx.beginPath(); ctx.arc(m.x, m.y, m.r, 0, 7);
     ctx.fillStyle = m.fl > 0 ? '#fff' : m.c; ctx.fill();
     ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.lineWidth = 4; ctx.stroke();
     
-    if (m.hp < m.mhp) { // 受伤显示血条，在底部
-      let w = m.r * 1.5;
-      ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(m.x - w/2, m.y + m.r + 4, w, 4);
-      ctx.fillStyle = '#f44'; ctx.fillRect(m.x - w/2, m.y + m.r + 4, w * (m.hp/m.mhp), 4);
+    if (m.hp < m.mhp) { 
+      let w = m.r * 1.5; let barY = m.y + m.r + 4;
+      ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.beginPath(); ctx.roundRect(m.x - w/2, barY, w, 4, 2); ctx.fill();
+      ctx.fillStyle = '#f44'; ctx.beginPath(); ctx.roundRect(m.x - w/2, barY, w * (m.hp/m.mhp), 4, 2); ctx.fill();
     }
   });
 
-  // 花瓣
   P.pts.forEach(p => {
     if (p.cd > 0) return;
     let a = P.ang + p.o;
@@ -488,80 +410,64 @@ function draw() {
     ctx.fillStyle = '#ff6b9d'; ctx.fill();
   });
 
-  // 玩家本体
-  ctx.beginPath(); ctx.arc(P.x, P.y, P.r, 0, 7);
-  ctx.fillStyle = P.fl > 0 ? '#f44' : '#4dabf7'; ctx.fill();
-  ctx.strokeStyle = '#1c5a8a'; ctx.lineWidth = 4; ctx.stroke();
-
-  // 卫星箭头
-  if (settings.arrowCfg.show && (Math.abs(P.vx) > 0.5 || Math.abs(P.vy) > 0.5)) {
-    let angle = Math.atan2(P.vy, P.vx);
-    let dist = P.r + 15;
-    ctx.save(); ctx.translate(P.x + Math.cos(angle)*dist, P.y + Math.sin(angle)*dist); ctx.rotate(angle);
-    ctx.beginPath(); ctx.moveTo(8,0); ctx.lineTo(-4,-6); ctx.lineTo(-4,6);
-    ctx.fillStyle = '#fff'; ctx.fill(); ctx.restore();
-  }
-
-  // ---- 调整模式专属：旁边的假怪 ----
-  if (settings.isLayoutMode) {
-    let fx = P.x + 100, fy = P.y;
-    ctx.beginPath(); ctx.arc(fx, fy, 20, 0, 7); ctx.fillStyle = '#ff4444'; ctx.fill();
-    ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.lineWidth = 4; ctx.stroke();
-    // 假血条
-    ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(fx - 20, fy + 24, 40, 4);
-    ctx.fillStyle = '#f44'; ctx.fillRect(fx - 20, fy + 24, 20, 4);
-  }
-
-  ctx.restore();
-
-  // ================= 渲染固定 UI =================
+  drawPlayer(P.x, P.y);
+  
   if (settings.showUI) {
     if (settings.joyMode === 'fixed' && !joy.act) drawJoy(FX, FY, FX, FY, 0, 0, false);
     else if (joy.act) drawJoy(joy.bx, joy.by, joy.kx, joy.ky, joy.dx, joy.dy, true);
+    drawPlayerHUD();
+  }
+}
 
-    // 左上角玩家状态 (圆角血条 + 缩放)
-    let scale = settings.uiCfg.hpSize;
-    let hx = 60 * scale, hy = 60 * scale, hr = 20 * scale;
-    let barW = 120 * scale, barH = 24 * scale;
+function drawPlayer(x, y) {
+  ctx.beginPath(); ctx.arc(x, y, P.r, 0, 7);
+  ctx.fillStyle = P.fl > 0 ? '#f44' : '#4dabf7'; ctx.fill();
+  ctx.strokeStyle = '#1c5a8a'; ctx.lineWidth = 4; ctx.stroke();
+  
+  // 箭头渲染
+  if ((Math.abs(P.vx) > 0.5 || Math.abs(P.vy) > 0.5) || settings.isLayoutMode) {
+    let angle = settings.isLayoutMode ? -Math.PI/2 : Math.atan2(P.vy, P.vx);
+    let dist = P.r + 15;
+    ctx.save(); ctx.translate(x + Math.cos(angle)*dist, y + Math.sin(angle)*dist); ctx.rotate(angle);
     
-    ctx.beginPath(); ctx.arc(hx, hy, hr, 0, 7); ctx.fillStyle = '#4dabf7'; ctx.fill();
-    ctx.strokeStyle = '#1c5a8a'; ctx.lineWidth = 3 * scale; ctx.stroke();
-    
-    // 圆角矩形 API
-    function roundRect(x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
+    if (settings.arrowStyle === 1) { // 锐利三角
+      ctx.beginPath(); ctx.moveTo(8,0); ctx.lineTo(-4,-6); ctx.lineTo(-4,6); ctx.closePath();
+      ctx.fillStyle = '#fff'; ctx.fill();
+    } else if (settings.arrowStyle === 2) { // 圆角三角
+      ctx.beginPath(); ctx.moveTo(8,0); ctx.arcTo(-4,-6, -4,6, 3); ctx.arcTo(-4,6, 8,0, 3); ctx.arcTo(8,0, -4,-6, 3);
+      ctx.fillStyle = '#fff'; ctx.fill();
+    } else if (settings.arrowStyle === 3) { // 月牙
+      ctx.beginPath(); ctx.arc(0, 0, 8, -Math.PI/2, Math.PI/2); ctx.arc(-4, 0, 6, Math.PI/2, -Math.PI/2, true); ctx.closePath();
+      ctx.fillStyle = '#fff'; ctx.fill();
+    } else if (settings.arrowStyle === 4) { // 拉弓形
+      ctx.beginPath(); ctx.moveTo(10, 0); ctx.quadraticCurveTo(-5, 10, -2, 0); ctx.quadraticCurveTo(-5, -10, 10, 0);
+      ctx.fillStyle = '#fff'; ctx.fill();
+    }
+    ctx.restore();
+  }
+}
 
-    roundRect(hx + 30*scale, hy - barH/2, barW, barH, 10*scale);
-    ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fill();
-    
-    if (P.displayHp > 0) { roundRect(hx + 30*scale, hy - barH/2, barW * (P.displayHp / P.mhp), barH, 10*scale); ctx.fillStyle = '#8b0000'; ctx.fill(); }
-    if (P.hp > 0) { roundRect(hx + 30*scale, hy - barH/2, barW * (P.hp / P.mhp), barH, 10*scale); ctx.fillStyle = '#ff4444'; ctx.fill(); }
-    
+function drawPlayerHUD() {
+  let scale = settings.hpCfg.size;
+  let hx = 60 * scale, hy = 60 * scale, hr = 20 * scale;
+  let barW = 120 * scale, barH = 24 * scale;
+  
+  ctx.globalAlpha = settings.hpCfg.alpha;
+  ctx.beginPath(); ctx.arc(hx, hy, hr, 0, 7); ctx.fillStyle = '#4dabf7'; ctx.fill();
+  ctx.strokeStyle = '#1c5a8a'; ctx.lineWidth = 3 * scale; ctx.stroke();
+  
+  function roundRect(x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
+  
+  roundRect(hx + 30*scale, hy - barH/2, barW, barH, 10*scale);
+  ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fill();
+  if (P.displayHp > 0) { roundRect(hx + 30*scale, hy - barH/2, barW * (P.displayHp / P.mhp), barH, 10*scale); ctx.fillStyle = '#8b0000'; ctx.fill(); }
+  if (P.hp > 0) { roundRect(hx + 30*scale, hy - barH/2, barW * (P.hp / P.mhp), barH, 10*scale); ctx.fillStyle = '#ff4444'; ctx.fill(); }
+  
+  if (settings.hpCfg.showNumber) {
     ctx.fillStyle = '#fff'; ctx.font = `bold ${14*scale}px monospace`; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
     ctx.fillText(`${Math.round(P.hp)}/${P.mhp}`, hx + 45*scale, hy + 1);
   }
-
-  // 右上角小地图 (处理三种放大状态)
-  if (settings.showUI) {
-    let mapSize = 80; // 默认由 CSS 控制，这里画中间的内容
-    let rect = minimapUI.getBoundingClientRect();
-    ctx.fillStyle = 'rgba(0,0,0,0.5)';
-    ctx.fillRect(rect.left, rect.top, rect.width, rect.height);
-    
-    ctx.strokeStyle = '#4dabf7'; ctx.lineWidth = 2; ctx.strokeRect(rect.left, rect.top, rect.width, rect.height);
-    
-    // 换算比例
-    let sx = rect.width / WORLD_W, sy = rect.height / WORLD_H;
-    // 画红线
-    ctx.strokeStyle = '#ff4444'; ctx.lineWidth = 1; ctx.strokeRect(rect.left + MAP_MARGIN*sx, rect.top + MAP_MARGIN*sy, (WORLD_W-MAP_MARGIN*2)*sx, (WORLD_H-MAP_MARGIN*2)*sy);
-    // 画怪物
-    ctx.fillStyle = '#f44';
-    M.forEach(m => { ctx.fillRect(rect.left + m.x*sx - 2, rect.top + m.y*sy - 2, 4, 4); });
-    // 画玩家
-    ctx.fillStyle = '#4dabf7';
-    ctx.beginPath(); ctx.arc(rect.left + P.x*sx, rect.top + P.y*sy, 3, 0, 7); ctx.fill();
-    
-    if (settings.isLayoutMode) { minimapUI.style.borderStyle = 'dashed'; } else { minimapUI.style.borderStyle = 'solid'; }
-  }
+  ctx.globalAlpha = 1;
 }
 
 function drawJoy(bx, by, kx, ky, dx, dy, active) {
