@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>花瓣游戏</title>
 <style>
+* {
+  -webkit-tap-highlight-color: transparent;
+}
 body {
   margin: 0;
   overflow: hidden;
@@ -25,6 +28,7 @@ canvas { display: block; }
   border-radius: 50%;
   border: 2px solid rgba(255,255,255,.5);
   transition: transform .18s ease, opacity .18s ease;
+  -webkit-tap-highlight-color: transparent;
 }
 .ui-btn:active { transform: scale(.95); }
 #btnA { width: 70px; height: 70px; bottom: 120px; right: 30px; font-size: 28px; }
@@ -45,6 +49,7 @@ canvas { display: block; }
   z-index: 100;
   cursor: pointer;
   transition: transform .18s ease, opacity .18s ease;
+  -webkit-tap-highlight-color: transparent;
 }
 #minimapContainer {
   position: fixed;
@@ -57,7 +62,8 @@ canvas { display: block; }
   overflow: hidden;
   z-index: 50;
   background: #000;
-  transition: width .25s ease, height .25s ease, transform .18s ease, opacity .18s ease;
+  transition: width .25s ease, height .25s ease, top .25s ease, right .25s ease, transform .18s ease, opacity .18s ease;
+  -webkit-tap-highlight-color: transparent;
 }
 #minimapCanvas { width: 100%; height: 100%; display: block; }
 .panel {
@@ -76,7 +82,7 @@ canvas { display: block; }
   flex-direction: column;
   gap: 12px;
   box-shadow: 0 10px 30px rgba(0,0,0,.8);
-  transition: transform .25s cubic-bezier(.175,.885,.32,1.275), opacity .25s;
+  transition: transform .25s cubic-bezier(.175,.885,.32,1.275), opacity .25s, height .25s ease;
 }
 .panel.show {
   transform: translate(-50%,-50%) scale(1);
@@ -102,6 +108,7 @@ canvas { display: block; }
   cursor: pointer;
   min-width: 80px;
   transition: .2s;
+  -webkit-tap-highlight-color: transparent;
 }
 .setting-row button:active { transform: scale(.95); }
 .setting-row input[type="range"] {
@@ -129,6 +136,7 @@ canvas { display: block; }
   width: 240px;
   border-color: #ffd93d;
   border-radius: 15px;
+  transition: transform .25s cubic-bezier(.175,.885,.32,1.275), opacity .25s, height .25s ease;
 }
 #layoutPanel.show {
   transform: scale(1);
@@ -175,7 +183,6 @@ canvas { display: block; }
   <div class="setting-row"><span>摇杆模式</span><button id="setJoyMode">动态</button></div>
   <div class="setting-row"><span>按键模式</span><button id="setKeyMode">长按</button></div>
   <div class="setting-row"><span>屏幕方向</span><button id="setScreen">自由</button></div>
-  <div class="setting-row"><span>卫星箭头</span><button id="setArrowStyle">样式1</button></div>
   <div class="setting-row"><span>自定义键位</span><button id="enterLayoutMode" style="background:#ff6b9d;">进入调整</button></div>
 </div>
 <div id="layoutPanel" class="panel">
@@ -230,6 +237,12 @@ let settings = {
   mapCfg: { size: 1, alpha: 1 }
 };
 
+// 可拖拽的 UI 位置（自定义键位模式里拖，退出后保留）
+const uiPos = {
+  hp: { x: 60, y: 60 },
+  joy: { x: 100, y: null }
+};
+
 const cur = { joySize: 1, joyAlpha: 1, hpSize: 1, hpAlpha: 1 };
 
 const btnA = document.getElementById('btnA');
@@ -239,11 +252,28 @@ const settingsPanel = document.getElementById('settingsPanel');
 const layoutPanel = document.getElementById('layoutPanel');
 const dynamicSettings = document.getElementById('dynamicSettings');
 
-function openSettingsPanel() { settingsPanel.classList.add('show'); }
+// 面板高度过渡：每次内容变化时记录高度并动画
+function animatePanelHeight() {
+  const target = layoutPanel.querySelector('.panel-content').scrollHeight + 30;
+  layoutPanel.style.height = target + 'px';
+}
+
+function openSettingsPanel() {
+  settingsPanel.classList.add('show');
+}
 function closeSettingsPanel() {
   settingsPanel.classList.remove('show');
   applyScreenOrientation();
 }
+
+// 点设置面板外面关闭
+window.addEventListener('touchstart', e => {
+  if (!settingsPanel.classList.contains('show')) return;
+  if (settingsPanel.contains(e.target)) return;
+  if (e.target === btnSettings) return;
+  closeSettingsPanel();
+}, { passive: false });
+
 btnSettings.onclick = () => {
   if (!settings.isLayoutMode) openSettingsPanel();
 };
@@ -251,13 +281,11 @@ btnSettings.onclick = () => {
 const btnSetJoy = document.getElementById('setJoyMode');
 const btnSetKey = document.getElementById('setKeyMode');
 const btnSetScreen = document.getElementById('setScreen');
-const btnSetArrow = document.getElementById('setArrowStyle');
 
 function updateUIButtons() {
   btnSetJoy.innerText = settings.joyMode === 'dynamic' ? '动态' : '固定';
   btnSetKey.innerText = settings.keyMode === 'hold' ? '长按' : '点击';
   btnSetScreen.innerText = settings.screen === 'free' ? '自由' : (settings.screen === 'landscape' ? '横屏' : '竖屏');
-  btnSetArrow.innerText = `样式${settings.arrowStyle}`;
 }
 btnSetJoy.onclick = () => {
   settings.joyMode = settings.joyMode === 'dynamic' ? 'fixed' : 'dynamic';
@@ -270,10 +298,6 @@ btnSetKey.onclick = () => {
 };
 btnSetScreen.onclick = () => {
   settings.screen = settings.screen === 'free' ? 'landscape' : (settings.screen === 'landscape' ? 'portrait' : 'free');
-  updateUIButtons();
-};
-btnSetArrow.onclick = () => {
-  settings.arrowStyle = settings.arrowStyle % 4 + 1;
   updateUIButtons();
 };
 updateUIButtons();
@@ -293,6 +317,7 @@ document.getElementById('enterLayoutMode').onclick = () => {
   layoutPanel.classList.add('show');
   settings.isLayoutMode = true;
   dynamicSettings.innerHTML = '<p style="font-size:12px;color:#aaa;">点击场景元素进行专属调整</p>';
+  animatePanelHeight();
 };
 document.getElementById('exitLayoutMode').onclick = () => {
   layoutPanel.classList.remove('show');
@@ -303,6 +328,7 @@ document.getElementById('exitLayoutMode').onclick = () => {
 document.getElementById('toggleCollapse').onclick = () => {
   layoutPanel.classList.toggle('collapsed');
   document.getElementById('toggleCollapse').innerText = layoutPanel.classList.contains('collapsed') ? '▲' : '▼';
+  animatePanelHeight();
 };
 
 let isDraggingPanel = false, panelStartX, panelStartY, panelInitX, panelInitY;
@@ -353,7 +379,6 @@ function updateUIVisuals() {
   btnB.style.opacity = settings.btnBCfg.alpha;
   btnSettings.style.transform = `scale(${settings.gearCfg.size})`;
   btnSettings.style.opacity = settings.gearCfg.alpha;
-  minimapContainer.style.transform = `scale(${settings.mapCfg.size})`;
   minimapContainer.style.opacity = settings.mapCfg.alpha;
   syncMinimapSize();
 }
@@ -372,6 +397,10 @@ function selectUIElement(target) {
       btn.innerText = '小球: ' + (settings.joyCfg.showHead ? '显示' : '隐藏');
     };
     dynamicSettings.appendChild(btn);
+    let hint = document.createElement('p');
+    hint.style.cssText = 'font-size:12px;color:#aaa;margin:0;';
+    hint.innerText = '在场景里按住摇杆可拖动位置';
+    dynamicSettings.appendChild(hint);
   } else if (target === 'hpbar' || target === 'player') {
     dynamicSettings.innerHTML = '<h3 style="margin:0;color:#4dabf7;">左上角血条 / 玩家</h3>';
     dynamicSettings.appendChild(buildSlider('大小', settings.hpCfg.size, .5, 1.5, v => settings.hpCfg.size = v));
@@ -390,6 +419,10 @@ function selectUIElement(target) {
       btn2.innerText = '切换箭头样式 (当前:' + settings.arrowStyle + ')';
     };
     dynamicSettings.appendChild(btn2);
+    let hint = document.createElement('p');
+    hint.style.cssText = 'font-size:12px;color:#aaa;margin:0;';
+    hint.innerText = '在场景里按住头像/血条可拖动位置';
+    dynamicSettings.appendChild(hint);
   } else if (target === 'fakeMonster') {
     dynamicSettings.innerHTML = '<h3 style="margin:0;color:#4dabf7;">假怪血条设置</h3>';
     dynamicSettings.appendChild(buildSlider('透明度', settings.monstCfg.alpha, .1, 1, v => settings.monstCfg.alpha = v));
@@ -428,6 +461,7 @@ function selectUIElement(target) {
     dynamicSettings.appendChild(buildSlider('大小', settings.mapCfg.size, .5, 2, v => { settings.mapCfg.size = v; updateUIVisuals(); }));
     dynamicSettings.appendChild(buildSlider('透明度', settings.mapCfg.alpha, .1, 1, v => { settings.mapCfg.alpha = v; updateUIVisuals(); }));
   }
+  animatePanelHeight();
 }
 
 function initDrag(el, type) {
@@ -464,11 +498,12 @@ const P = {
   vx: 0, vy: 0, accel: .45, friction: .86, maxSpeed: 4,
   hp: 100, mhp: 100, displayHp: 100,
   pts: [], n: 5, ang: 0, fl: 0,
-  arrowAlpha: 0, stillTimer: 0
+  arrowAlpha: 0, stillTimer: 0, arrowAngle: 0,
+  wasMoving: false
 };
 function initP(n) {
   P.pts = [];
-  for (let i = 0; i < n; i++) P.pts.push({ o: i * (Math.PI * 2 / n), cd: 0, r: 12 });
+  for (let i = 0; i < n; i++) P.pts.push({ o: i * (Math.PI * 2 / n), cd: 0, r: 10, appear: 1 });
 }
 initP(P.n);
 
@@ -493,8 +528,9 @@ function spawn() {
   });
 }
 
-let joy = { act: false, bx: 0, by: 0, kx: 0, ky: 0, dx: 0, dy: 0, id: null };
-let JR = 60, KR = 30, FX = 100, FY = H - 120;
+let joy = { act: false, bx: 0, by: 0, kx: 0, ky: 0, dx: 0, dy: 0, id: null, visAlpha: 0 };
+let JR = 60, KR = 30;
+let FX = 100, FY = H - 120;
 
 function resetJoy() {
   joy.act = false;
@@ -505,11 +541,14 @@ function resetJoy() {
 
 cvs.addEventListener('touchstart', e => {
   if (!settings.showUI || settings.isLayoutMode) return;
+  if (settingsPanel.classList.contains('show')) return;
   const t = e.changedTouches[0], tx = t.clientX, ty = t.clientY;
   if (joy.act) return;
   if (settings.joyMode === 'fixed') {
-    joy.bx = FX; joy.by = FY;
-    joy.kx = FX; joy.ky = FY;
+    joy.bx = uiPos.joy.x;
+    joy.by = uiPos.joy.y !== null ? uiPos.joy.y : FY;
+    joy.kx = joy.bx;
+    joy.ky = joy.by;
   } else {
     joy.bx = tx; joy.by = ty;
     joy.kx = tx; joy.ky = ty;
@@ -549,6 +588,7 @@ let isALong = false, isBLong = false, isAClicked = false, isBClicked = false;
 
 function handleDown(isA) {
   if (!settings.showUI || settings.isLayoutMode) return;
+  if (settingsPanel.classList.contains('show')) return;
   if (settings.keyMode === 'hold') {
     if (isA) isALong = true; else isBLong = true;
   } else {
@@ -579,6 +619,9 @@ function loop(now) {
   cur.joyAlpha += (settings.joyCfg.alpha - cur.joyAlpha) * .2 * dt;
   cur.hpSize += (settings.hpCfg.size - cur.hpSize) * .2 * dt;
   cur.hpAlpha += (settings.hpCfg.alpha - cur.hpAlpha) * .2 * dt;
+  // 摇杆整体淡入淡出
+  let joyTarget = joy.act ? 1 : 0;
+  joy.visAlpha += (joyTarget - joy.visAlpha) * .15 * dt;
   draw();
   requestAnimationFrame(loop);
 }
@@ -610,8 +653,10 @@ function upd(dt) {
   let targetRadius = 46;
   if (isALong || isAClicked) targetRadius = maxPetalRadius;
   if (isBLong || isBClicked) targetRadius = minPetalRadius;
-  if (currentPetalRadius < targetRadius) currentPetalRadius = Math.min(currentPetalRadius + 6 * dt, targetRadius);
-  if (currentPetalRadius > targetRadius) currentPetalRadius = Math.max(currentPetalRadius - 6 * dt, targetRadius);
+  // 伸缩带回弹缓动
+  let speed = 6;
+  if (currentPetalRadius < targetRadius) currentPetalRadius = Math.min(currentPetalRadius + speed * dt, targetRadius);
+  if (currentPetalRadius > targetRadius) currentPetalRadius = Math.max(currentPetalRadius - speed * dt, targetRadius);
 
   if (joy.act) {
     P.vx += joy.dx * P.accel * dt;
@@ -631,8 +676,16 @@ function upd(dt) {
   if (P.displayHp > P.hp) P.displayHp -= 0.15 * dt;
   if (P.displayHp < P.hp) P.displayHp = P.hp;
 
-  P.ang += .04 * dt;
-  P.pts.forEach(p => { if (p.cd > 0) p.cd -= dt; });
+  // 花瓣旋转加轻微起伏，更自然
+  P.ang += (.04 + Math.sin(performance.now() / 900) * 0.012) * dt;
+  P.pts.forEach(p => {
+    if (p.cd > 0) {
+      p.cd -= dt;
+      p.appear = Math.max(0, p.appear - 0.08 * dt);
+    } else {
+      p.appear = Math.min(1, p.appear + 0.06 * dt);
+    }
+  });
 
   if (M.length < 15 && Math.random() < .05) spawn();
 
@@ -679,6 +732,7 @@ function upd(dt) {
         m.hp -= 12;
         m.fl = 8;
         p.cd = 20;
+        p.appear = 1;
         if (m.ai === 3) m.state = 1;
         break;
       }
@@ -714,19 +768,19 @@ function upd(dt) {
   }
   if (P.fl > 0) P.fl -= dt;
 
-  // 箭头淡入淡出：移动中（有摇杆输入或速度明显）淡入，静止50s后淡出
-  const moving = joy.act || Math.hypot(P.vx, P.vy) > 0.15;
-  if (moving) {
+  // 箭头逻辑：移动就亮，静止满50s才慢慢灭，中间不闪
+  const movingNow = joy.act || Math.hypot(P.vx, P.vy) > 0.2;
+  if (movingNow) {
     P.stillTimer = 0;
-    P.arrowAlpha = Math.min(1, P.arrowAlpha + 0.06 * dt);
+    P.arrowAlpha = Math.min(1, P.arrowAlpha + 0.08 * dt);
+    if (joy.act && (Math.abs(joy.dx) > 0.05 || Math.abs(joy.dy) > 0.05)) {
+      P.arrowAngle = Math.atan2(joy.dy, joy.dx);
+    }
   } else {
     P.stillTimer += dt / 60;
     if (P.stillTimer >= 50) {
       P.arrowAlpha = Math.max(0, P.arrowAlpha - 0.02 * dt);
     }
-  }
-  if (joy.act && (Math.abs(joy.dx) > 0.05 || Math.abs(joy.dy) > 0.05)) {
-    P.arrowAngle = Math.atan2(joy.dy, joy.dx);
   }
 }
 
@@ -736,14 +790,16 @@ function draw() {
 
   if (settings.isLayoutMode) {
     drawGridScreen();
-    drawPlayer(W / 2, H / 2);
+    // 玩家
+    drawPlayer(uiPos.hp.x + 40, uiPos.hp.y + 40, true);
+    // 假怪
     let fx = W / 2 + 100, fy = H / 2;
     ctx.beginPath();
     ctx.arc(fx, fy, 20, 0, 7);
     ctx.fillStyle = '#888';
     ctx.fill();
     ctx.strokeStyle = 'rgba(0,0,0,0.5)';
-    ctx.lineWidth = 4;
+    ctx.lineWidth = 1;
     ctx.stroke();
     ctx.globalAlpha = settings.monstCfg.alpha;
     if (settings.monstCfg.showHpBar) {
@@ -764,7 +820,7 @@ function draw() {
       }
     }
     ctx.globalAlpha = 1;
-    drawJoy(FX, FY, FX, FY, 0, 0, true);
+    drawJoy(uiPos.joy.x, uiPos.joy.y !== null ? uiPos.joy.y : FY, uiPos.joy.x, uiPos.joy.y !== null ? uiPos.joy.y : FY, 0, 0, 1);
     drawPlayerHUD();
     drawMinimap();
     return;
@@ -797,7 +853,7 @@ function draw() {
     ctx.fillStyle = m.fl > 0 ? '#fff' : m.c;
     ctx.fill();
     ctx.strokeStyle = 'rgba(0,0,0,0.5)';
-    ctx.lineWidth = 4;
+    ctx.lineWidth = 1;
     ctx.stroke();
     if (m.hp < m.mhp) {
       let w = m.r * 1.5, barY = m.y + m.r + 4;
@@ -812,22 +868,34 @@ function draw() {
     }
   });
 
+  // 花瓣：冷却时淡出；且只在角色圈外才露出来
+  ctx.save();
   P.pts.forEach(p => {
-    if (p.cd > 0) return;
+    if (p.appear <= 0.01) return;
     let a = P.ang + p.o;
+    let px = P.x + Math.cos(a) * currentPetalRadius;
+    let py = P.y + Math.sin(a) * currentPetalRadius;
+    // 花瓣圆离角色圆心距离 - 花瓣半径 < 角色半径，则完全被角色挡住
+    let dToCenter = Math.hypot(px - P.x, py - P.y);
+    if (dToCenter - p.r < P.r) return;
+    ctx.globalAlpha = p.appear;
     ctx.beginPath();
-    ctx.arc(P.x + Math.cos(a) * currentPetalRadius, P.y + Math.sin(a) * currentPetalRadius, p.r, 0, 7);
+    ctx.arc(px, py, p.r, 0, 7);
     ctx.fillStyle = '#ff6b9d';
     ctx.fill();
+    ctx.strokeStyle = '#c94f7c';
+    ctx.lineWidth = 1;
+    ctx.stroke();
   });
+  ctx.globalAlpha = 1;
+  ctx.restore();
 
   drawPlayer(P.x, P.y);
 
   ctx.restore();
 
   if (settings.showUI) {
-    if (settings.joyMode === 'fixed' && !joy.act) drawJoy(FX, FY, FX, FY, 0, 0, false);
-    else if (joy.act) drawJoy(joy.bx, joy.by, joy.kx, joy.ky, joy.dx, joy.dy, true);
+    drawJoy(joy.bx, joy.by, joy.kx, joy.ky, joy.dx, joy.dy, joy.visAlpha);
     drawPlayerHUD();
     drawMinimap();
   }
@@ -869,21 +937,21 @@ function drawGridScreen() {
   }
 }
 
-function drawPlayer(x, y) {
+function drawPlayer(x, y, layoutPreview) {
   ctx.beginPath();
   ctx.arc(x, y, P.r, 0, 7);
   ctx.fillStyle = P.fl > 0 ? '#f44' : '#4dabf7';
   ctx.fill();
   ctx.strokeStyle = '#1c5a8a';
-  ctx.lineWidth = 0.5;
+  ctx.lineWidth = 1;
   ctx.stroke();
 
+  if (layoutPreview) return;
+
   if (P.arrowAlpha > 0.01) {
-    let angle;
-    if (settings.isLayoutMode) {
-      angle = -Math.PI / 2;
-    } else {
-      angle = (P.arrowAngle !== undefined) ? P.arrowAngle : Math.atan2(P.vy, P.vx);
+    let angle = settings.isLayoutMode ? -Math.PI / 2 : P.arrowAngle;
+    if (!settings.isLayoutMode && P.arrowAlpha > 0 && P.stillTimer === 0 && Math.hypot(P.vx, P.vy) <= 0.2) {
+      angle = P.arrowAngle;
     }
     let dist = P.r + 15;
     ctx.save();
@@ -924,7 +992,8 @@ function drawPlayer(x, y) {
 
 function drawPlayerHUD() {
   let scale = cur.hpSize;
-  let hx = 60 * scale, hy = 60 * scale, hr = 20 * scale;
+  let hx = uiPos.hp.x * scale, hy = uiPos.hp.y * scale;
+  let hr = 20 * scale;
   let barW = 120 * scale, barH = 24 * scale;
   ctx.globalAlpha = cur.hpAlpha;
   ctx.beginPath();
@@ -969,8 +1038,38 @@ function drawPlayerHUD() {
   ctx.globalAlpha = 1;
 }
 
-// 小地图（独立画布，无内部圆角红框，避免与容器圆角重叠）
-let mapZoom = 1;
+// 小地图三档缩放
+let mapZoom = 0;
+const mapSizes = [
+  { w: 80, h: 80, top: 20, right: 80 },
+  { w: 140, h: 140, top: 20, right: 60 },
+  { w: 260, h: 260, top: '50%', right: '50%' }
+];
+function applyMapZoom() {
+  const s = mapSizes[mapZoom];
+  if (mapZoom === 2) {
+    minimapContainer.style.width = s.w + 'px';
+    minimapContainer.style.height = s.h + 'px';
+    minimapContainer.style.top = '50%';
+    minimapContainer.style.left = '50%';
+    minimapContainer.style.right = 'auto';
+    minimapContainer.style.transform = 'translate(-50%,-50%) scale(1)';
+  } else {
+    minimapContainer.style.width = s.w * settings.mapCfg.size + 'px';
+    minimapContainer.style.height = s.h * settings.mapCfg.size + 'px';
+    minimapContainer.style.top = s.top + 'px';
+    minimapContainer.style.right = s.right + 'px';
+    minimapContainer.style.left = 'auto';
+    minimapContainer.style.transform = 'scale(1)';
+  }
+  setTimeout(syncMinimapSize, 280);
+}
+minimapContainer.addEventListener('click', () => {
+  if (settings.isLayoutMode) return;
+  mapZoom = (mapZoom + 1) % 3;
+  applyMapZoom();
+});
+
 function drawMinimap() {
   const w = minimapCanvas.width, h = minimapCanvas.height;
   if (w < 2 || h < 2) return;
@@ -979,29 +1078,23 @@ function drawMinimap() {
   mmCtx.fillStyle = 'rgba(0,0,0,0.5)';
   mmCtx.fillRect(0, 0, w, h);
 
+  // 点固定大小，不随地图变大变小
+  const dotR = 2;
   mmCtx.fillStyle = '#f44';
   M.forEach(m => {
-    mmCtx.fillRect(m.x * sx - 1, m.y * sy - 1, 2, 2);
+    mmCtx.beginPath();
+    mmCtx.arc(m.x * sx, m.y * sy, dotR, 0, 7);
+    mmCtx.fill();
   });
-
   mmCtx.fillStyle = '#4dabf7';
   mmCtx.beginPath();
-  mmCtx.arc(P.x * sx, P.y * sy, 2, 0, 7);
+  mmCtx.arc(P.x * sx, P.y * sy, dotR, 0, 7);
   mmCtx.fill();
 }
 
-// 正常游戏模式点击小地图切换缩放
-minimapContainer.addEventListener('click', () => {
-  if (settings.isLayoutMode) return;
-  mapZoom = mapZoom === 1 ? 1.6 : 1;
-  const baseW = 80, baseH = 80;
-  minimapContainer.style.width = (baseW * mapZoom * settings.mapCfg.size) + 'px';
-  minimapContainer.style.height = (baseH * mapZoom * settings.mapCfg.size) + 'px';
-  setTimeout(syncMinimapSize, 260);
-});
-
-function drawJoy(bx, by, kx, ky, dx, dy, active) {
-  ctx.globalAlpha = active ? 1 : cur.joyAlpha;
+function drawJoy(bx, by, kx, ky, dx, dy, alpha) {
+  if (alpha <= 0.01) return;
+  ctx.globalAlpha = alpha * cur.joyAlpha;
   let size = cur.joySize;
   let jr = JR * size, kr = KR * size;
   ctx.beginPath();
@@ -1023,15 +1116,15 @@ function drawJoy(bx, by, kx, ky, dx, dy, active) {
   ctx.globalAlpha = 1;
 }
 
-// 自定义键位模式下命中检测（左上角血条、玩家、假怪血条、摇杆）
+// 自定义键位命中：左上角血条可拖、摇杆可拖、假怪/玩家/A/B/齿轮/地图
+let draggingUI = null, dragUIStartX, dragUIStartY, dragUIInitX, dragUIInitY;
 cvs.addEventListener('touchstart', e => {
   if (!settings.isLayoutMode) return;
   const t = e.changedTouches[0];
   const tx = t.clientX, ty = t.clientY;
 
-  // 左上角头像 + 血条区域
   let hs = cur.hpSize;
-  let hx = 60 * hs, hy = 60 * hs, hr = 20 * hs;
+  let hx = uiPos.hp.x * hs, hy = uiPos.hp.y * hs, hr = 20 * hs;
   let barW = 120 * hs, barH = 24 * hs;
   let barX = hx + 30 * hs;
   if (
@@ -1039,16 +1132,37 @@ cvs.addEventListener('touchstart', e => {
     (tx >= barX && tx <= barX + barW && ty >= hy - barH / 2 && ty <= hy + barH / 2)
   ) {
     selectUIElement('hpbar');
+    draggingUI = 'hp';
+    dragUIStartX = tx;
+    dragUIStartY = ty;
+    dragUIInitX = uiPos.hp.x;
+    dragUIInitY = uiPos.hp.y;
+    e.preventDefault();
+    return;
+  }
+
+  // 摇杆
+  let jr = JR * cur.joySize;
+  let jx = uiPos.joy.x;
+  let jy = uiPos.joy.y !== null ? uiPos.joy.y : FY;
+  if (Math.hypot(tx - jx, ty - jy) < jr + 20) {
+    selectUIElement('joy');
+    draggingUI = 'joy';
+    dragUIStartX = tx;
+    dragUIStartY = ty;
+    dragUIInitX = jx;
+    dragUIInitY = jy;
+    e.preventDefault();
     return;
   }
 
   // 玩家
-  if (Math.hypot(tx - W / 2, ty - H / 2) < P.r + 20) {
+  if (Math.hypot(tx - (uiPos.hp.x + 40), ty - (uiPos.hp.y + 40)) < P.r + 20) {
     selectUIElement('player');
     return;
   }
 
-  // 假怪本体 + 血条
+  // 假怪
   let fx = W / 2 + 100, fy = H / 2;
   let fw = 30, fbarY = fy + 20 + 6;
   if (
@@ -1058,17 +1172,27 @@ cvs.addEventListener('touchstart', e => {
     selectUIElement('fakeMonster');
     return;
   }
-
-  // 摇杆
-  let jr = JR * cur.joySize;
-  let jx = (settings.joyMode === 'fixed') ? FX : joy.bx;
-  let jy = (settings.joyMode === 'fixed') ? FY : joy.by;
-  if (!joy.act) { jx = FX; jy = FY; }
-  if (Math.hypot(tx - jx, ty - jy) < jr + 20) {
-    selectUIElement('joy');
-    return;
-  }
 }, { passive: false });
+
+cvs.addEventListener('touchmove', e => {
+  if (!draggingUI) return;
+  const t = e.changedTouches[0];
+  const tx = t.clientX, ty = t.clientY;
+  let nx = dragUIInitX + (tx - dragUIStartX);
+  let ny = dragUIInitY + (ty - dragUIStartY);
+  if (draggingUI === 'hp') {
+    uiPos.hp.x = nx;
+    uiPos.hp.y = ny;
+  } else if (draggingUI === 'joy') {
+    uiPos.joy.x = nx;
+    uiPos.joy.y = ny;
+  }
+  e.preventDefault();
+}, { passive: false });
+
+cvs.addEventListener('touchend', () => {
+  draggingUI = null;
+});
 
 requestAnimationFrame(loop);
 </script>
