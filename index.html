@@ -179,9 +179,14 @@ canvas { display: block; }
 }
 .dynamic-inner { transition: opacity .18s ease; }
 .dynamic-inner.fade { opacity: 0; }
+#exitWrap {
+  margin-top: 10px;
+  padding: 6px;
+  border: 2px solid rgba(255,107,157,.6);
+  border-radius: 14px;
+}
 #exitLayoutMode {
   width: 100%;
-  margin-top: 10px;
   padding: 10px;
   border-radius: 10px;
   border: none;
@@ -218,7 +223,9 @@ canvas { display: block; }
   <div class="panel-content" id="layoutContent">
     <p style="font-size:12px;color:#aaa;margin:0 0 10px 0;">点击场景元素调专属设置：</p>
     <div id="dynamicSettings" class="dynamic-inner" style="display:flex;flex-direction:column;gap:10px;"></div>
-    <button id="exitLayoutMode">保存并退出</button>
+    <div id="exitWrap">
+      <button id="exitLayoutMode">保存并退出</button>
+    </div>
   </div>
 </div>
 <script>
@@ -254,18 +261,19 @@ let settings = {
   showUI: true,
   arrowStyle: 1,
   avatarCfg: { size: 1, alpha: 1 },
-  hpBarCfg: { size: 1, alpha: 1, showNumber: true },
+  hpBarCfg: { size: 1, alpha: 1, showNumber: true, showDmg: true },
   joyCfg: { size: 1, alpha: 1, showHead: true },
   btnACfg: { size: 1, alpha: 1 },
   btnBCfg: { size: 1, alpha: 1 },
-  monstCfg: { alpha: 1, showHpBar: true, showHpNum: true },
+  monstCfg: { alpha: 1, showHpBar: true, showHpNum: true, showDmg: true },
+  pPreviewCfg: { alpha: 1, showHpBar: true, showHpNum: true, showDmg: true },
   gearCfg: { size: 1, alpha: 1 },
   mapCfg: { size: 1, alpha: 1, expandDir: 'rightbottom' }
 };
 
 const uiPos = {
   avatar: { x: 60, y: 60 },
-  hpBar: { x: 90, y: 60 },
+  hpBar: { x: 150, y: 60 },
   joy: { x: 100, y: null }
 };
 
@@ -275,7 +283,7 @@ const cur = {
   hpSize: 1, hpAlpha: 1
 };
 
-const hl = { avatar: 0, hpBar: 0, joy: 0, fakeMonster: 0 };
+const hl = { avatar: 0, hpBar: 0, joy: 0, fakeMonster: 0, pPreview: 0, pPreviewHp: 0 };
 let hlTarget = null;
 
 const btnA = document.getElementById('btnA');
@@ -476,20 +484,12 @@ function selectUIElement(target) {
         btn.innerText = '小球: ' + (settings.joyCfg.showHead ? '显示' : '隐藏');
       };
       dynamicSettings.appendChild(btn);
-      let hint = document.createElement('p');
-      hint.style.cssText = 'font-size:12px;color:#aaa;margin:0;';
-      hint.innerText = '在场景里按住摇杆可拖动位置';
-      dynamicSettings.appendChild(hint);
     });
   } else if (target === 'avatar') {
     setDynamicContent('', () => {
       dynamicSettings.innerHTML = '<h3 style="margin:0;color:#4dabf7;">头像设置</h3>';
       dynamicSettings.appendChild(buildSlider('大小', settings.avatarCfg.size, .5, 1.5, v => settings.avatarCfg.size = v));
       dynamicSettings.appendChild(buildSlider('透明度', settings.avatarCfg.alpha, .1, 1, v => settings.avatarCfg.alpha = v));
-      let hint = document.createElement('p');
-      hint.style.cssText = 'font-size:12px;color:#aaa;margin:0;';
-      hint.innerText = '在场景里按住头像可拖动位置';
-      dynamicSettings.appendChild(hint);
     });
   } else if (target === 'hpBar') {
     setDynamicContent('', () => {
@@ -503,10 +503,13 @@ function selectUIElement(target) {
         btn.innerText = '血量数值: ' + (settings.hpBarCfg.showNumber ? '显示' : '隐藏');
       };
       dynamicSettings.appendChild(btn);
-      let hint = document.createElement('p');
-      hint.style.cssText = 'font-size:12px;color:#aaa;margin:0;';
-      hint.innerText = '在场景里按住血条可拖动位置';
-      dynamicSettings.appendChild(hint);
+      let btn2 = document.createElement('button');
+      btn2.innerText = '伤害飘字: ' + (settings.hpBarCfg.showDmg ? '显示' : '隐藏');
+      btn2.onclick = () => {
+        settings.hpBarCfg.showDmg = !settings.hpBarCfg.showDmg;
+        btn2.innerText = '伤害飘字: ' + (settings.hpBarCfg.showDmg ? '显示' : '隐藏');
+      };
+      dynamicSettings.appendChild(btn2);
     });
   } else if (target === 'player') {
     setDynamicContent('', () => {
@@ -519,9 +522,39 @@ function selectUIElement(target) {
       };
       dynamicSettings.appendChild(btn2);
     });
+  } else if (target === 'pPreview') {
+    setDynamicContent('', () => {
+      dynamicSettings.innerHTML = '<h3 style="margin:0;color:#4dabf7;">主角预览</h3>';
+      dynamicSettings.appendChild(buildSlider('透明度', settings.pPreviewCfg.alpha, .1, 1, v => settings.pPreviewCfg.alpha = v));
+    });
+  } else if (target === 'pPreviewHp') {
+    setDynamicContent('', () => {
+      dynamicSettings.innerHTML = '<h3 style="margin:0;color:#4dabf7;">主角预览血条</h3>';
+      let btn1 = document.createElement('button');
+      btn1.innerText = '显示血条: ' + (settings.pPreviewCfg.showHpBar ? '开' : '关');
+      btn1.onclick = () => {
+        settings.pPreviewCfg.showHpBar = !settings.pPreviewCfg.showHpBar;
+        btn1.innerText = '显示血条: ' + (settings.pPreviewCfg.showHpBar ? '开' : '关');
+      };
+      let btn2 = document.createElement('button');
+      btn2.innerText = '显示数值: ' + (settings.pPreviewCfg.showHpNum ? '开' : '关');
+      btn2.onclick = () => {
+        settings.pPreviewCfg.showHpNum = !settings.pPreviewCfg.showHpNum;
+        btn2.innerText = '显示数值: ' + (settings.pPreviewCfg.showHpNum ? '开' : '关');
+      };
+      let btn3 = document.createElement('button');
+      btn3.innerText = '伤害飘字: ' + (settings.pPreviewCfg.showDmg ? '开' : '关');
+      btn3.onclick = () => {
+        settings.pPreviewCfg.showDmg = !settings.pPreviewCfg.showDmg;
+        btn3.innerText = '伤害飘字: ' + (settings.pPreviewCfg.showDmg ? '开' : '关');
+      };
+      dynamicSettings.appendChild(btn1);
+      dynamicSettings.appendChild(btn2);
+      dynamicSettings.appendChild(btn3);
+    });
   } else if (target === 'fakeMonster') {
     setDynamicContent('', () => {
-      dynamicSettings.innerHTML = '<h3 style="margin:0;color:#4dabf7;">假怪血条设置</h3>';
+      dynamicSettings.innerHTML = '<h3 style="margin:0;color:#4dabf7;">假怪设置</h3>';
       dynamicSettings.appendChild(buildSlider('透明度', settings.monstCfg.alpha, .1, 1, v => settings.monstCfg.alpha = v));
       let btn1 = document.createElement('button');
       btn1.innerText = '显示血条: ' + (settings.monstCfg.showHpBar ? '开' : '关');
@@ -535,8 +568,15 @@ function selectUIElement(target) {
         settings.monstCfg.showHpNum = !settings.monstCfg.showHpNum;
         btn2.innerText = '显示数值: ' + (settings.monstCfg.showHpNum ? '开' : '关');
       };
+      let btn3 = document.createElement('button');
+      btn3.innerText = '伤害飘字: ' + (settings.monstCfg.showDmg ? '开' : '关');
+      btn3.onclick = () => {
+        settings.monstCfg.showDmg = !settings.monstCfg.showDmg;
+        btn3.innerText = '伤害飘字: ' + (settings.monstCfg.showDmg ? '开' : '关');
+      };
       dynamicSettings.appendChild(btn1);
       dynamicSettings.appendChild(btn2);
+      dynamicSettings.appendChild(btn3);
     });
   } else if (target === 'btnA') {
     btnA.classList.add('dragging');
@@ -599,7 +639,6 @@ initDrag(btnB, 'btnB');
 initDrag(btnSettings, 'gear');
 initDrag(minimapContainer, 'map');
 
-// A/B 按钮按下微缩 + 字母呼吸淡入淡出（最低50%）
 const labelA = btnA.querySelector('.label');
 const labelB = btnB.querySelector('.label');
 let breathPhase = 0;
@@ -618,9 +657,8 @@ const P = {
   x: WORLD / 2, y: WORLD / 2, r: 16,
   vx: 0, vy: 0, accel: .45, friction: .86, maxSpeed: 4,
   hp: 100, mhp: 100, displayHp: 100,
-  pts: [], n: 5, ang: 0, fl: 0,
-  arrowAlpha: 0, stillTimer: 0, arrowAngle: 0, arrowTargetAngle: 0,
-  wasMoving: false
+  pts: [], n: 5, ang: 0, fl: 0, redFlash: 0,
+  arrowAlpha: 0, stillTimer: 0, arrowAngle: 0, arrowTargetAngle: 0
 };
 function initP(n) {
   P.pts = [];
@@ -628,11 +666,18 @@ function initP(n) {
 }
 initP(P.n);
 
-const M = [], D = [];
+const M = [], D = [], DMG_TEXTS = [];
 const rnd = (a, b) => a + Math.random() * (b - a);
 const dst = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 
 const cam = { x: P.x - W / 2, y: P.y - H / 2 };
+
+function spawnDmgText(x, y, text, color) {
+  DMG_TEXTS.push({
+    x, y, text, color,
+    alpha: 0, vy: -2, life: 1, scale: 0.5
+  });
+}
 
 function spawn() {
   let x = rnd(MARGIN + 50, MAXR - 50);
@@ -646,7 +691,8 @@ function spawn() {
     c: `hsl(${rnd(0, 360)},70%,55%)`,
     fl: 0, acd: 0, ai: aiType, state: 0,
     wanderAngle: rnd(0, 6.28),
-    appear: 0, fadeOut: 0, dying: false
+    appear: 0, fadeOut: 0, dying: false,
+    redFlash: 0
   });
 }
 
@@ -746,7 +792,6 @@ function loop(now) {
   cur.hpSize += (settings.hpBarCfg.size - cur.hpSize) * .2 * dt;
   cur.hpAlpha += (settings.hpBarCfg.alpha - cur.hpAlpha) * .2 * dt;
 
-  // 摇杆显示目标：动态模式按住才显示；固定模式一直显示，但静置50秒后淡出
   let joyTarget;
   if (settings.joyMode === 'fixed') {
     if (joy.act) joyFixedStill = 0;
@@ -757,7 +802,6 @@ function loop(now) {
   }
   joy.visAlpha += (joyTarget - joy.visAlpha) * .15 * dt;
 
-  // A/B 字母呼吸淡入淡出，最低透明度 50%
   breathPhase += dt * 0.02;
   let breath = 0.75 + 0.25 * Math.sin(breathPhase);
   if (labelA) labelA.style.opacity = breath;
@@ -832,7 +876,7 @@ function upd(dt) {
   P.pts.forEach(p => {
     if (p.cd > 0) {
       p.cd -= dt;
-      p.appear = Math.max(0, p.appear - 0.15 * dt);
+      p.appear = Math.max(0, p.appear - 0.25 * dt);
       if (p.cd <= 0) p.pop = 1;
     } else {
       p.appear = Math.min(1, p.appear + 0.08 * dt);
@@ -852,6 +896,8 @@ function upd(dt) {
     if (m.appear < 1) m.appear = Math.min(1, m.appear + 0.06 * dt);
     if (m.fl > 0) m.fl -= dt;
     if (m.acd > 0) m.acd -= dt;
+    if (m.redFlash > 0) m.redFlash -= 0.15 * dt;
+
     let dx = P.x - m.x, dy = P.y - m.y, d = Math.hypot(dx, dy);
     if (m.ai === 2 && d < 250) m.state = 1;
     if (m.state === 1) {
@@ -880,6 +926,10 @@ function upd(dt) {
         P.hp -= 8;
         P.fl = 4;
         m.acd = 7;
+        P.redFlash = 1;
+        if (settings.hpBarCfg.showDmg) {
+          spawnDmgText(P.x, P.y - P.r - 10, '-8', '#ff6b6b');
+        }
       }
     }
     for (let p of P.pts) {
@@ -890,14 +940,39 @@ function upd(dt) {
       if (dst({ x: px, y: py }, m) < p.r + m.r) {
         m.hp -= 12;
         m.fl = 8;
+        m.redFlash = 1;
         p.cd = 20;
         if (m.ai === 3) m.state = 1;
+        
+        // 击退
+        let kbAngle = Math.atan2(m.y - P.y, m.x - P.x);
+        m.x += Math.cos(kbAngle) * 8;
+        m.y += Math.sin(kbAngle) * 8;
+
+        if (settings.monstCfg.showDmg) {
+          spawnDmgText(m.x, m.y - m.r - 10, '-12', '#ffd93d');
+        }
         break;
       }
     }
     if (m.hp <= 0 && !m.dying) {
       m.dying = true;
       D.push({ x: m.x, y: m.y, r: 10, t: 30 });
+    }
+  }
+
+  // 更新飘字
+  for (let i = DMG_TEXTS.length - 1; i >= 0; i--) {
+    let d = DMG_TEXTS[i];
+    if (d.life > 0) {
+      d.alpha = Math.min(1, d.alpha + 0.15 * dt);
+      d.scale += (1 - d.scale) * 0.2 * dt;
+      d.y += d.vy * dt;
+      d.life -= 0.02 * dt;
+      if (d.life <= 0) d.life = 0;
+    } else {
+      d.alpha -= 0.05 * dt;
+      if (d.alpha <= 0) DMG_TEXTS.splice(i, 1);
     }
   }
 
@@ -925,6 +1000,7 @@ function upd(dt) {
     initP(5);
   }
   if (P.fl > 0) P.fl -= dt;
+  if (P.redFlash > 0) P.redFlash -= 0.15 * dt;
 
   const movingNow = joy.act || Math.hypot(P.vx, P.vy) > 0.2;
   if (movingNow) {
@@ -948,8 +1024,57 @@ function draw() {
 
   if (settings.isLayoutMode) {
     drawGridScreen();
-    drawPlayer(uiPos.avatar.x + 40, uiPos.avatar.y + 40, true);
-    let fx = W / 2 + 100, fy = H / 2;
+    
+    // 玩家预览固定在屏幕正中心
+    drawPlayer(W/2, H/2, true);
+    
+    if (hl.pPreview > 0.01) {
+      ctx.save();
+      ctx.globalAlpha = hl.pPreview;
+      ctx.strokeStyle = '#ffd93d';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([6, 4]);
+      ctx.beginPath();
+      ctx.arc(W/2, H/2, P.r + 8, 0, 7);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // 玩家预览小血条
+    ctx.globalAlpha = settings.pPreviewCfg.alpha;
+    if (settings.pPreviewCfg.showHpBar) {
+      let w = 30, barY = H/2 + P.r + 6;
+      ctx.fillStyle = 'rgba(0,0,0,0.6)';
+      ctx.beginPath();
+      ctx.roundRect(W/2 - w / 2, barY, w, 4, 2);
+      ctx.fill();
+      ctx.fillStyle = '#f44';
+      ctx.beginPath();
+      ctx.roundRect(W/2 - w / 2, barY, w * 0.5, 4, 2);
+      ctx.fill();
+      if (settings.pPreviewCfg.showHpNum) {
+        ctx.fillStyle = '#fff';
+        ctx.font = '10px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('50/100', W/2, barY - 4);
+      }
+    }
+    ctx.globalAlpha = 1;
+
+    if (hl.pPreviewHp > 0.01) {
+      ctx.save();
+      ctx.globalAlpha = hl.pPreviewHp;
+      ctx.strokeStyle = '#ffd93d';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([6, 4]);
+      ctx.beginPath();
+      ctx.roundRect(W/2 - 15 - 4, H/2 + P.r + 6 - 4, 30 + 8, 4 + 8, 4);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // 假怪
+    let fx = W / 2 + 150, fy = H / 2;
     ctx.beginPath();
     ctx.arc(fx, fy, 20, 0, 7);
     ctx.fillStyle = '#888';
@@ -1040,8 +1165,14 @@ function draw() {
     ctx.globalAlpha = alpha;
     ctx.beginPath();
     ctx.arc(m.x, m.y, m.r, 0, 7);
-    ctx.fillStyle = m.fl > 0 ? '#fff' : m.c;
+    
+    if (m.redFlash > 0) {
+      ctx.fillStyle = `rgba(255, 100, 100, ${m.redFlash})`;
+    } else {
+      ctx.fillStyle = m.fl > 0 ? '#fff' : m.c;
+    }
     ctx.fill();
+    
     ctx.strokeStyle = 'rgba(0,0,0,0.7)';
     ctx.lineWidth = 1.5;
     ctx.stroke();
@@ -1084,6 +1215,22 @@ function draw() {
   });
 
   drawPlayer(P.x, P.y);
+
+  // 绘制飘字
+  DMG_TEXTS.forEach(d => {
+    ctx.save();
+    ctx.globalAlpha = d.alpha;
+    ctx.translate(d.x, d.y);
+    ctx.scale(d.scale, d.scale);
+    ctx.fillStyle = d.color;
+    ctx.strokeStyle = 'rgba(0,0,0,0.8)';
+    ctx.lineWidth = 3;
+    ctx.font = 'bold 16px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.strokeText(d.text, 0, 0);
+    ctx.fillText(d.text, 0, 0);
+    ctx.restore();
+  });
 
   ctx.restore();
 
@@ -1133,7 +1280,11 @@ function drawGridScreen() {
 function drawPlayer(x, y, layoutPreview) {
   ctx.beginPath();
   ctx.arc(x, y, P.r, 0, 7);
-  ctx.fillStyle = P.fl > 0 ? '#e06262' : '#4dabf7';
+  if (P.redFlash > 0 && !layoutPreview) {
+    ctx.fillStyle = `rgba(255, 100, 100, ${P.redFlash})`;
+  } else {
+    ctx.fillStyle = '#4dabf7';
+  }
   ctx.fill();
   ctx.strokeStyle = '#163f63';
   ctx.lineWidth = 1.5;
@@ -1196,7 +1347,11 @@ function drawPlayerHUD() {
   ctx.globalAlpha = aAlpha;
   ctx.beginPath();
   ctx.arc(avX, avY, avR, 0, 7);
-  ctx.fillStyle = P.fl > 0 ? '#e06262' : '#4dabf7';
+  if (P.redFlash > 0) {
+    ctx.fillStyle = `rgba(255, 100, 100, ${P.redFlash})`;
+  } else {
+    ctx.fillStyle = '#4dabf7';
+  }
   ctx.fill();
   ctx.strokeStyle = '#163f63';
   ctx.lineWidth = 1.5;
@@ -1337,7 +1492,6 @@ minimapContainer.addEventListener('click', () => {
   applyMapZoom(true);
 });
 
-let mmPrevW = 0, mmPrevH = 0;
 function drawMinimap() {
   const w = minimapCanvas.width, h = minimapCanvas.height;
   if (w < 2 || h < 2) return;
@@ -1357,10 +1511,6 @@ function drawMinimap() {
   mmCtx.beginPath();
   mmCtx.arc(P.x * sx, P.y * sy, dotR, 0, 7);
   mmCtx.fill();
-
-  if (w !== mmPrevW || h !== mmPrevH) {
-    mmPrevW = w; mmPrevH = h;
-  }
 }
 
 function drawJoy(bx, by, kx, ky, dx, dy, alpha) {
@@ -1433,13 +1583,22 @@ cvs.addEventListener('touchstart', e => {
     return;
   }
 
-  if (Math.hypot(tx - (uiPos.avatar.x + 40), ty - (uiPos.avatar.y + 40)) < P.r + 15) {
-    selectUIElement('player');
+  // 玩家预览点击判定
+  if (Math.hypot(tx - W/2, ty - H/2) < P.r + 15) {
+    selectUIElement('pPreview');
     e.preventDefault();
     return;
   }
 
-  let fx = W / 2 + 100, fy = H / 2;
+  // 玩家预览小血条判定
+  let pBarY = H/2 + P.r + 6;
+  if (tx >= W/2 - 15 - 10 && tx <= W/2 + 15 + 10 && ty >= pBarY - 10 && ty <= pBarY + 4 + 10) {
+    selectUIElement('pPreviewHp');
+    e.preventDefault();
+    return;
+  }
+
+  let fx = W / 2 + 150, fy = H / 2;
   let fw = 30, fbarY = fy + 20 + 6;
   if (
     Math.hypot(tx - fx, ty - fy) < 20 + 15 ||
@@ -1477,4 +1636,4 @@ cvs.addEventListener('touchend', () => {
 requestAnimationFrame(loop);
 </script>
 </body>
-  </html>
+</html>
