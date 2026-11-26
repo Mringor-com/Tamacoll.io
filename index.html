@@ -28,7 +28,6 @@ canvas { display: block; }
   border-radius: 50%;
   border: 2px solid rgba(255,255,255,.5);
   transition: transform .18s ease, opacity .18s ease;
-  -webkit-tap-highlight-color: transparent;
 }
 .ui-btn:active { transform: scale(.95); }
 #btnA { width: 70px; height: 70px; bottom: 120px; right: 30px; font-size: 28px; }
@@ -49,7 +48,6 @@ canvas { display: block; }
   z-index: 100;
   cursor: pointer;
   transition: transform .18s ease, opacity .18s ease;
-  -webkit-tap-highlight-color: transparent;
 }
 #minimapContainer {
   position: fixed;
@@ -62,8 +60,7 @@ canvas { display: block; }
   overflow: hidden;
   z-index: 50;
   background: #000;
-  transition: width .25s ease, height .25s ease, top .25s ease, right .25s ease, transform .18s ease, opacity .18s ease;
-  -webkit-tap-highlight-color: transparent;
+  transition: width .25s ease, height .25s ease, top .25s ease, left .25s ease, right .25s ease, transform .18s ease, opacity .18s ease;
 }
 #minimapCanvas { width: 100%; height: 100%; display: block; }
 .panel {
@@ -98,6 +95,9 @@ canvas { display: block; }
   width: 100%;
   gap: 15px;
 }
+.setting-row > span {
+  white-space: nowrap;
+}
 .setting-row button {
   padding: 8px 12px;
   border-radius: 10px;
@@ -108,13 +108,20 @@ canvas { display: block; }
   cursor: pointer;
   min-width: 80px;
   transition: .2s;
-  -webkit-tap-highlight-color: transparent;
 }
 .setting-row button:active { transform: scale(.95); }
 .setting-row input[type="range"] {
   flex: 1;
   margin: 0 10px;
   accent-color: #4dabf7;
+}
+.pct-value {
+  cursor: pointer;
+  color: #4dabf7;
+  font-weight: bold;
+  border-bottom: 1px dashed #4dabf7;
+  min-width: 42px;
+  text-align: center;
 }
 .close-x {
   position: absolute;
@@ -164,6 +171,27 @@ canvas { display: block; }
   padding-bottom: 5px;
   margin-bottom: 10px;
 }
+.dynamic-inner {
+  transition: opacity .18s ease;
+}
+.dynamic-inner.fade {
+  opacity: 0;
+}
+#exitWrap {
+  margin-top: 10px;
+  padding: 6px;
+  border: 2px solid rgba(255,107,157,.6);
+  border-radius: 14px;
+}
+#exitLayoutMode {
+  width: 100%;
+  padding: 10px;
+  border-radius: 10px;
+  border: none;
+  background: #ff6b9d;
+  color: #fff;
+  font-weight: bold;
+}
 .dragging {
   border: 2px dashed #ffd93d !important;
   box-shadow: 0 0 15px #ffd93d;
@@ -192,8 +220,10 @@ canvas { display: block; }
   </div>
   <div class="panel-content" id="layoutContent">
     <p style="font-size:12px;color:#aaa;margin:0 0 10px 0;">点击场景元素调专属设置：</p>
-    <div id="dynamicSettings" style="display:flex;flex-direction:column;gap:10px;"></div>
-    <button class="close-btn" id="exitLayoutMode" style="margin-top:10px;padding:10px;border-radius:10px;border:none;background:#ff6b9d;color:#fff;font-weight:bold;">保存并退出</button>
+    <div id="dynamicSettings" class="dynamic-inner" style="display:flex;flex-direction:column;gap:10px;"></div>
+    <div id="exitWrap">
+      <button id="exitLayoutMode">保存并退出</button>
+    </div>
   </div>
 </div>
 <script>
@@ -228,22 +258,34 @@ let settings = {
   isLayoutMode: false,
   showUI: true,
   arrowStyle: 1,
+  avatarCfg: { size: 1, alpha: 1 },
+  hpBarCfg: { size: 1, alpha: 1, showNumber: true },
   joyCfg: { size: 1, alpha: 1, showHead: true },
   btnACfg: { size: 1, alpha: 1 },
   btnBCfg: { size: 1, alpha: 1 },
-  hpCfg: { size: 1, alpha: 1, showNumber: true },
   monstCfg: { alpha: 1, showHpBar: true, showHpNum: true },
   gearCfg: { size: 1, alpha: 1 },
   mapCfg: { size: 1, alpha: 1 }
 };
 
-// 可拖拽的 UI 位置（自定义键位模式里拖，退出后保留）
+// 可拖拽 UI 位置（自定义键位里拖，退出后保留）
 const uiPos = {
-  hp: { x: 60, y: 60 },
+  avatar: { x: 60, y: 60 },
+  hpBar: { x: 90, y: 60 },
   joy: { x: 100, y: null }
 };
 
-const cur = { joySize: 1, joyAlpha: 1, hpSize: 1, hpAlpha: 1 };
+const cur = {
+  joySize: 1, joyAlpha: 1,
+  avatarSize: 1, avatarAlpha: 1,
+  hpSize: 1, hpAlpha: 1
+};
+
+// 高亮淡入淡出
+const hl = {
+  avatar: 0, hpBar: 0, joy: 0, fakeMonster: 0
+};
+let hlTarget = null;
 
 const btnA = document.getElementById('btnA');
 const btnB = document.getElementById('btnB');
@@ -252,7 +294,6 @@ const settingsPanel = document.getElementById('settingsPanel');
 const layoutPanel = document.getElementById('layoutPanel');
 const dynamicSettings = document.getElementById('dynamicSettings');
 
-// 面板高度过渡：每次内容变化时记录高度并动画
 function animatePanelHeight() {
   const target = layoutPanel.querySelector('.panel-content').scrollHeight + 30;
   layoutPanel.style.height = target + 'px';
@@ -266,7 +307,6 @@ function closeSettingsPanel() {
   applyScreenOrientation();
 }
 
-// 点设置面板外面关闭
 window.addEventListener('touchstart', e => {
   if (!settingsPanel.classList.contains('show')) return;
   if (settingsPanel.contains(e.target)) return;
@@ -323,6 +363,7 @@ document.getElementById('exitLayoutMode').onclick = () => {
   layoutPanel.classList.remove('show');
   settings.isLayoutMode = false;
   document.querySelectorAll('.dragging').forEach(el => el.classList.remove('dragging'));
+  hlTarget = null;
   updateUIVisuals();
 };
 document.getElementById('toggleCollapse').onclick = () => {
@@ -353,10 +394,18 @@ window.addEventListener('touchmove', e => {
 }, { passive: false });
 window.addEventListener('touchend', () => isDraggingPanel = false);
 
+// 滑块：百分比与标签同一行，点百分比可精确输入
 function buildSlider(label, val, min, max, cb) {
   let div = document.createElement('div');
   div.className = 'setting-row';
-  div.innerHTML = `<span>${label}: <span>${Math.round(val*100)}%</span></span>`;
+  let span = document.createElement('span');
+  span.innerText = label + ': ';
+  let pct = document.createElement('span');
+  pct.className = 'pct-value';
+  pct.innerText = Math.round(val * 100) + '%';
+  span.appendChild(pct);
+  div.appendChild(span);
+
   let input = document.createElement('input');
   input.type = 'range';
   input.min = min;
@@ -365,10 +414,22 @@ function buildSlider(label, val, min, max, cb) {
   input.value = val;
   input.oninput = (e) => {
     let v = parseFloat(e.target.value);
-    div.querySelector('span span').innerText = Math.round(v*100) + '%';
+    pct.innerText = Math.round(v * 100) + '%';
     cb(v);
   };
   div.appendChild(input);
+
+  pct.onclick = () => {
+    let curVal = Math.round(parseFloat(input.value) * 100);
+    let s = prompt('输入百分比 (50 ~ ' + Math.round(max * 100) + ')', curVal);
+    if (s === null) return;
+    let n = parseFloat(s);
+    if (isNaN(n)) return;
+    n = Math.min(max, Math.max(min, n / 100));
+    input.value = n;
+    pct.innerText = Math.round(n * 100) + '%';
+    cb(n);
+  };
   return div;
 }
 
@@ -383,85 +444,122 @@ function updateUIVisuals() {
   syncMinimapSize();
 }
 
+function setDynamicContent(html, build) {
+  dynamicSettings.classList.add('fade');
+  setTimeout(() => {
+    dynamicSettings.innerHTML = html;
+    if (build) build();
+    dynamicSettings.classList.remove('fade');
+    animatePanelHeight();
+  }, 180);
+}
+
 function selectUIElement(target) {
   document.querySelectorAll('.dragging').forEach(el => el.classList.remove('dragging'));
-  dynamicSettings.innerHTML = '';
+  hlTarget = target;
   if (target === 'joy') {
-    dynamicSettings.innerHTML = '<h3 style="margin:0;color:#4dabf7;">摇杆设置</h3>';
-    dynamicSettings.appendChild(buildSlider('大小', settings.joyCfg.size, .5, 1.5, v => settings.joyCfg.size = v));
-    dynamicSettings.appendChild(buildSlider('透明度', settings.joyCfg.alpha, .1, 1, v => settings.joyCfg.alpha = v));
-    let btn = document.createElement('button');
-    btn.innerText = '小球: ' + (settings.joyCfg.showHead ? '显示' : '隐藏');
-    btn.onclick = () => {
-      settings.joyCfg.showHead = !settings.joyCfg.showHead;
+    setDynamicContent('', () => {
+      dynamicSettings.innerHTML = '<h3 style="margin:0;color:#4dabf7;">摇杆设置</h3>';
+      dynamicSettings.appendChild(buildSlider('大小', settings.joyCfg.size, .5, 1.5, v => settings.joyCfg.size = v));
+      dynamicSettings.appendChild(buildSlider('透明度', settings.joyCfg.alpha, .1, 1, v => settings.joyCfg.alpha = v));
+      let btn = document.createElement('button');
       btn.innerText = '小球: ' + (settings.joyCfg.showHead ? '显示' : '隐藏');
-    };
-    dynamicSettings.appendChild(btn);
-    let hint = document.createElement('p');
-    hint.style.cssText = 'font-size:12px;color:#aaa;margin:0;';
-    hint.innerText = '在场景里按住摇杆可拖动位置';
-    dynamicSettings.appendChild(hint);
-  } else if (target === 'hpbar' || target === 'player') {
-    dynamicSettings.innerHTML = '<h3 style="margin:0;color:#4dabf7;">左上角血条 / 玩家</h3>';
-    dynamicSettings.appendChild(buildSlider('大小', settings.hpCfg.size, .5, 1.5, v => settings.hpCfg.size = v));
-    dynamicSettings.appendChild(buildSlider('透明度', settings.hpCfg.alpha, .1, 1, v => settings.hpCfg.alpha = v));
-    let btn = document.createElement('button');
-    btn.innerText = '血量数值: ' + (settings.hpCfg.showNumber ? '显示' : '隐藏');
-    btn.onclick = () => {
-      settings.hpCfg.showNumber = !settings.hpCfg.showNumber;
-      btn.innerText = '血量数值: ' + (settings.hpCfg.showNumber ? '显示' : '隐藏');
-    };
-    dynamicSettings.appendChild(btn);
-    let btn2 = document.createElement('button');
-    btn2.innerText = '切换箭头样式 (当前:' + settings.arrowStyle + ')';
-    btn2.onclick = () => {
-      settings.arrowStyle = settings.arrowStyle % 4 + 1;
+      btn.onclick = () => {
+        settings.joyCfg.showHead = !settings.joyCfg.showHead;
+        btn.innerText = '小球: ' + (settings.joyCfg.showHead ? '显示' : '隐藏');
+      };
+      dynamicSettings.appendChild(btn);
+      let hint = document.createElement('p');
+      hint.style.cssText = 'font-size:12px;color:#aaa;margin:0;';
+      hint.innerText = '在场景里按住摇杆可拖动位置';
+      dynamicSettings.appendChild(hint);
+    });
+  } else if (target === 'avatar') {
+    setDynamicContent('', () => {
+      dynamicSettings.innerHTML = '<h3 style="margin:0;color:#4dabf7;">头像设置</h3>';
+      dynamicSettings.appendChild(buildSlider('大小', settings.avatarCfg.size, .5, 1.5, v => settings.avatarCfg.size = v));
+      dynamicSettings.appendChild(buildSlider('透明度', settings.avatarCfg.alpha, .1, 1, v => settings.avatarCfg.alpha = v));
+      let hint = document.createElement('p');
+      hint.style.cssText = 'font-size:12px;color:#aaa;margin:0;';
+      hint.innerText = '在场景里按住头像可拖动位置';
+      dynamicSettings.appendChild(hint);
+    });
+  } else if (target === 'hpBar') {
+    setDynamicContent('', () => {
+      dynamicSettings.innerHTML = '<h3 style="margin:0;color:#4dabf7;">血条设置</h3>';
+      dynamicSettings.appendChild(buildSlider('大小', settings.hpBarCfg.size, .5, 1.5, v => settings.hpBarCfg.size = v));
+      dynamicSettings.appendChild(buildSlider('透明度', settings.hpBarCfg.alpha, .1, 1, v => settings.hpBarCfg.alpha = v));
+      let btn = document.createElement('button');
+      btn.innerText = '血量数值: ' + (settings.hpBarCfg.showNumber ? '显示' : '隐藏');
+      btn.onclick = () => {
+        settings.hpBarCfg.showNumber = !settings.hpBarCfg.showNumber;
+        btn.innerText = '血量数值: ' + (settings.hpBarCfg.showNumber ? '显示' : '隐藏');
+      };
+      dynamicSettings.appendChild(btn);
+      let hint = document.createElement('p');
+      hint.style.cssText = 'font-size:12px;color:#aaa;margin:0;';
+      hint.innerText = '在场景里按住血条可拖动位置';
+      dynamicSettings.appendChild(hint);
+    });
+  } else if (target === 'player') {
+    setDynamicContent('', () => {
+      dynamicSettings.innerHTML = '<h3 style="margin:0;color:#4dabf7;">玩家箭头</h3>';
+      let btn2 = document.createElement('button');
       btn2.innerText = '切换箭头样式 (当前:' + settings.arrowStyle + ')';
-    };
-    dynamicSettings.appendChild(btn2);
-    let hint = document.createElement('p');
-    hint.style.cssText = 'font-size:12px;color:#aaa;margin:0;';
-    hint.innerText = '在场景里按住头像/血条可拖动位置';
-    dynamicSettings.appendChild(hint);
+      btn2.onclick = () => {
+        settings.arrowStyle = settings.arrowStyle % 4 + 1;
+        btn2.innerText = '切换箭头样式 (当前:' + settings.arrowStyle + ')';
+      };
+      dynamicSettings.appendChild(btn2);
+    });
   } else if (target === 'fakeMonster') {
-    dynamicSettings.innerHTML = '<h3 style="margin:0;color:#4dabf7;">假怪血条设置</h3>';
-    dynamicSettings.appendChild(buildSlider('透明度', settings.monstCfg.alpha, .1, 1, v => settings.monstCfg.alpha = v));
-    let btn1 = document.createElement('button');
-    btn1.innerText = '显示血条: ' + (settings.monstCfg.showHpBar ? '开' : '关');
-    btn1.onclick = () => {
-      settings.monstCfg.showHpBar = !settings.monstCfg.showHpBar;
+    setDynamicContent('', () => {
+      dynamicSettings.innerHTML = '<h3 style="margin:0;color:#4dabf7;">假怪血条设置</h3>';
+      dynamicSettings.appendChild(buildSlider('透明度', settings.monstCfg.alpha, .1, 1, v => settings.monstCfg.alpha = v));
+      let btn1 = document.createElement('button');
       btn1.innerText = '显示血条: ' + (settings.monstCfg.showHpBar ? '开' : '关');
-    };
-    let btn2 = document.createElement('button');
-    btn2.innerText = '显示数值: ' + (settings.monstCfg.showHpNum ? '开' : '关');
-    btn2.onclick = () => {
-      settings.monstCfg.showHpNum = !settings.monstCfg.showHpNum;
+      btn1.onclick = () => {
+        settings.monstCfg.showHpBar = !settings.monstCfg.showHpBar;
+        btn1.innerText = '显示血条: ' + (settings.monstCfg.showHpBar ? '开' : '关');
+      };
+      let btn2 = document.createElement('button');
       btn2.innerText = '显示数值: ' + (settings.monstCfg.showHpNum ? '开' : '关');
-    };
-    dynamicSettings.appendChild(btn1);
-    dynamicSettings.appendChild(btn2);
+      btn2.onclick = () => {
+        settings.monstCfg.showHpNum = !settings.monstCfg.showHpNum;
+        btn2.innerText = '显示数值: ' + (settings.monstCfg.showHpNum ? '开' : '关');
+      };
+      dynamicSettings.appendChild(btn1);
+      dynamicSettings.appendChild(btn2);
+    });
   } else if (target === 'btnA') {
     btnA.classList.add('dragging');
-    dynamicSettings.innerHTML = '<h3 style="margin:0;color:#4dabf7;">A 键</h3>';
-    dynamicSettings.appendChild(buildSlider('大小', settings.btnACfg.size, .5, 1.5, v => { settings.btnACfg.size = v; updateUIVisuals(); }));
-    dynamicSettings.appendChild(buildSlider('透明度', settings.btnACfg.alpha, .1, 1, v => { settings.btnACfg.alpha = v; updateUIVisuals(); }));
+    setDynamicContent('', () => {
+      dynamicSettings.innerHTML = '<h3 style="margin:0;color:#4dabf7;">A 键</h3>';
+      dynamicSettings.appendChild(buildSlider('大小', settings.btnACfg.size, .5, 1.5, v => { settings.btnACfg.size = v; updateUIVisuals(); }));
+      dynamicSettings.appendChild(buildSlider('透明度', settings.btnACfg.alpha, .1, 1, v => { settings.btnACfg.alpha = v; updateUIVisuals(); }));
+    });
   } else if (target === 'btnB') {
     btnB.classList.add('dragging');
-    dynamicSettings.innerHTML = '<h3 style="margin:0;color:#4dabf7;">B 键</h3>';
-    dynamicSettings.appendChild(buildSlider('大小', settings.btnBCfg.size, .5, 1.5, v => { settings.btnBCfg.size = v; updateUIVisuals(); }));
-    dynamicSettings.appendChild(buildSlider('透明度', settings.btnBCfg.alpha, .1, 1, v => { settings.btnBCfg.alpha = v; updateUIVisuals(); }));
+    setDynamicContent('', () => {
+      dynamicSettings.innerHTML = '<h3 style="margin:0;color:#4dabf7;">B 键</h3>';
+      dynamicSettings.appendChild(buildSlider('大小', settings.btnBCfg.size, .5, 1.5, v => { settings.btnBCfg.size = v; updateUIVisuals(); }));
+      dynamicSettings.appendChild(buildSlider('透明度', settings.btnBCfg.alpha, .1, 1, v => { settings.btnBCfg.alpha = v; updateUIVisuals(); }));
+    });
   } else if (target === 'gear') {
     btnSettings.classList.add('dragging');
-    dynamicSettings.innerHTML = '<h3 style="margin:0;color:#4dabf7;">设置齿轮</h3>';
-    dynamicSettings.appendChild(buildSlider('大小', settings.gearCfg.size, .5, 1.5, v => { settings.gearCfg.size = v; updateUIVisuals(); }));
-    dynamicSettings.appendChild(buildSlider('透明度', settings.gearCfg.alpha, .1, 1, v => { settings.gearCfg.alpha = v; updateUIVisuals(); }));
+    setDynamicContent('', () => {
+      dynamicSettings.innerHTML = '<h3 style="margin:0;color:#4dabf7;">设置齿轮</h3>';
+      dynamicSettings.appendChild(buildSlider('大小', settings.gearCfg.size, .5, 1.5, v => { settings.gearCfg.size = v; updateUIVisuals(); }));
+      dynamicSettings.appendChild(buildSlider('透明度', settings.gearCfg.alpha, .1, 1, v => { settings.gearCfg.alpha = v; updateUIVisuals(); }));
+    });
   } else if (target === 'map') {
     minimapContainer.classList.add('dragging');
-    dynamicSettings.innerHTML = '<h3 style="margin:0;color:#4dabf7;">小地图设置</h3>';
-    dynamicSettings.appendChild(buildSlider('大小', settings.mapCfg.size, .5, 2, v => { settings.mapCfg.size = v; updateUIVisuals(); }));
-    dynamicSettings.appendChild(buildSlider('透明度', settings.mapCfg.alpha, .1, 1, v => { settings.mapCfg.alpha = v; updateUIVisuals(); }));
+    setDynamicContent('', () => {
+      dynamicSettings.innerHTML = '<h3 style="margin:0;color:#4dabf7;">小地图设置</h3>';
+      dynamicSettings.appendChild(buildSlider('大小', settings.mapCfg.size, .5, 2, v => { settings.mapCfg.size = v; updateUIVisuals(); }));
+      dynamicSettings.appendChild(buildSlider('透明度', settings.mapCfg.alpha, .1, 1, v => { settings.mapCfg.alpha = v; updateUIVisuals(); }));
+    });
   }
-  animatePanelHeight();
 }
 
 function initDrag(el, type) {
@@ -498,12 +596,12 @@ const P = {
   vx: 0, vy: 0, accel: .45, friction: .86, maxSpeed: 4,
   hp: 100, mhp: 100, displayHp: 100,
   pts: [], n: 5, ang: 0, fl: 0,
-  arrowAlpha: 0, stillTimer: 0, arrowAngle: 0,
+  arrowAlpha: 0, stillTimer: 0, arrowAngle: 0, arrowTargetAngle: 0,
   wasMoving: false
 };
 function initP(n) {
   P.pts = [];
-  for (let i = 0; i < n; i++) P.pts.push({ o: i * (Math.PI * 2 / n), cd: 0, r: 10, appear: 1 });
+  for (let i = 0; i < n; i++) P.pts.push({ o: i * (Math.PI * 2 / n), cd: 0, r: 10, appear: 1, pop: 0 });
 }
 initP(P.n);
 
@@ -615,13 +713,23 @@ function loop(now) {
   let dt = Math.min((now - last) / 16.67, 2);
   last = now;
   if (!settings.isLayoutMode) upd(dt);
+
   cur.joySize += (settings.joyCfg.size - cur.joySize) * .2 * dt;
   cur.joyAlpha += (settings.joyCfg.alpha - cur.joyAlpha) * .2 * dt;
-  cur.hpSize += (settings.hpCfg.size - cur.hpSize) * .2 * dt;
-  cur.hpAlpha += (settings.hpCfg.alpha - cur.hpAlpha) * .2 * dt;
-  // 摇杆整体淡入淡出
+  cur.avatarSize += (settings.avatarCfg.size - cur.avatarSize) * .2 * dt;
+  cur.avatarAlpha += (settings.avatarCfg.alpha - cur.avatarAlpha) * .2 * dt;
+  cur.hpSize += (settings.hpBarCfg.size - cur.hpSize) * .2 * dt;
+  cur.hpAlpha += (settings.hpBarCfg.alpha - cur.hpAlpha) * .2 * dt;
+
   let joyTarget = joy.act ? 1 : 0;
   joy.visAlpha += (joyTarget - joy.visAlpha) * .15 * dt;
+
+  // 高亮淡入淡出
+  for (let k in hl) {
+    let t = (hlTarget === k) ? 1 : 0;
+    hl[k] += (t - hl[k]) * .2 * dt;
+  }
+
   draw();
   requestAnimationFrame(loop);
 }
@@ -649,11 +757,17 @@ function clampBound(o, isPlayer) {
   return hit;
 }
 
+function shortestAngle(from, to) {
+  let d = to - from;
+  while (d > Math.PI) d -= Math.PI * 2;
+  while (d < -Math.PI) d += Math.PI * 2;
+  return d;
+}
+
 function upd(dt) {
   let targetRadius = 46;
   if (isALong || isAClicked) targetRadius = maxPetalRadius;
   if (isBLong || isBClicked) targetRadius = minPetalRadius;
-  // 伸缩带回弹缓动
   let speed = 6;
   if (currentPetalRadius < targetRadius) currentPetalRadius = Math.min(currentPetalRadius + speed * dt, targetRadius);
   if (currentPetalRadius > targetRadius) currentPetalRadius = Math.max(currentPetalRadius - speed * dt, targetRadius);
@@ -673,18 +787,17 @@ function upd(dt) {
   P.y += P.vy * dt;
   clampBound(P, true);
 
-  if (P.displayHp > P.hp) P.displayHp -= 0.15 * dt;
+  if (P.displayHp > P.hp) P.displayHp = Math.max(P.hp, P.displayHp - Math.max(0.35, (P.displayHp - P.hp) * 0.12) * dt);
   if (P.displayHp < P.hp) P.displayHp = P.hp;
 
-  // 花瓣旋转加轻微起伏，更自然
-  P.ang += (.04 + Math.sin(performance.now() / 900) * 0.012) * dt;
+  // 花瓣匀速旋转 + 冷却/弹出
+  P.ang += .04 * dt;
   P.pts.forEach(p => {
     if (p.cd > 0) {
       p.cd -= dt;
-      p.appear = Math.max(0, p.appear - 0.08 * dt);
-    } else {
-      p.appear = Math.min(1, p.appear + 0.06 * dt);
+      if (p.cd <= 0) p.pop = 1;
     }
+    if (p.pop > 0) p.pop = Math.max(0, p.pop - 0.08 * dt);
   });
 
   if (M.length < 15 && Math.random() < .05) spawn();
@@ -719,7 +832,7 @@ function upd(dt) {
       P.vy += Math.sin(angle) * 2;
       if (m.acd <= 0) {
         P.hp -= 8;
-        P.fl = 8;
+        P.fl = 4;
         m.acd = 7;
       }
     }
@@ -732,7 +845,6 @@ function upd(dt) {
         m.hp -= 12;
         m.fl = 8;
         p.cd = 20;
-        p.appear = 1;
         if (m.ai === 3) m.state = 1;
         break;
       }
@@ -768,13 +880,13 @@ function upd(dt) {
   }
   if (P.fl > 0) P.fl -= dt;
 
-  // 箭头逻辑：移动就亮，静止满50s才慢慢灭，中间不闪
+  // 箭头：移动亮、静止50s淡出；方向立即快速对准摇杆
   const movingNow = joy.act || Math.hypot(P.vx, P.vy) > 0.2;
   if (movingNow) {
     P.stillTimer = 0;
     P.arrowAlpha = Math.min(1, P.arrowAlpha + 0.08 * dt);
     if (joy.act && (Math.abs(joy.dx) > 0.05 || Math.abs(joy.dy) > 0.05)) {
-      P.arrowAngle = Math.atan2(joy.dy, joy.dx);
+      P.arrowTargetAngle = Math.atan2(joy.dy, joy.dx);
     }
   } else {
     P.stillTimer += dt / 60;
@@ -782,6 +894,8 @@ function upd(dt) {
       P.arrowAlpha = Math.max(0, P.arrowAlpha - 0.02 * dt);
     }
   }
+  // 快速转向
+  P.arrowAngle += shortestAngle(P.arrowAngle, P.arrowTargetAngle) * Math.min(1, 0.35 * dt);
 }
 
 function draw() {
@@ -790,17 +904,31 @@ function draw() {
 
   if (settings.isLayoutMode) {
     drawGridScreen();
-    // 玩家
-    drawPlayer(uiPos.hp.x + 40, uiPos.hp.y + 40, true);
+    // 玩家预览在头像附近
+    drawPlayer(uiPos.avatar.x + 40, uiPos.avatar.y + 40, true);
     // 假怪
     let fx = W / 2 + 100, fy = H / 2;
     ctx.beginPath();
     ctx.arc(fx, fy, 20, 0, 7);
     ctx.fillStyle = '#888';
     ctx.fill();
-    ctx.strokeStyle = 'rgba(0,0,0,0.5)';
-    ctx.lineWidth = 1;
+    ctx.strokeStyle = 'rgba(0,0,0,0.7)';
+    ctx.lineWidth = 1.5;
     ctx.stroke();
+
+    // 假怪高亮
+    if (hl.fakeMonster > 0.01) {
+      ctx.save();
+      ctx.globalAlpha = hl.fakeMonster;
+      ctx.strokeStyle = '#ffd93d';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([6, 4]);
+      ctx.beginPath();
+      ctx.arc(fx, fy, 20 + 8, 0, 7);
+      ctx.stroke();
+      ctx.restore();
+    }
+
     ctx.globalAlpha = settings.monstCfg.alpha;
     if (settings.monstCfg.showHpBar) {
       let w = 30, barY = fy + 20 + 6;
@@ -820,7 +948,23 @@ function draw() {
       }
     }
     ctx.globalAlpha = 1;
-    drawJoy(uiPos.joy.x, uiPos.joy.y !== null ? uiPos.joy.y : FY, uiPos.joy.x, uiPos.joy.y !== null ? uiPos.joy.y : FY, 0, 0, 1);
+
+    let jy = uiPos.joy.y !== null ? uiPos.joy.y : FY;
+    drawJoy(uiPos.joy.x, jy, uiPos.joy.x, jy, 0, 0, 1);
+
+    // 摇杆高亮
+    if (hl.joy > 0.01) {
+      ctx.save();
+      ctx.globalAlpha = hl.joy;
+      ctx.strokeStyle = '#ffd93d';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([6, 4]);
+      ctx.beginPath();
+      ctx.arc(uiPos.joy.x, jy, JR * cur.joySize + 8, 0, 7);
+      ctx.stroke();
+      ctx.restore();
+    }
+
     drawPlayerHUD();
     drawMinimap();
     return;
@@ -845,6 +989,9 @@ function draw() {
     ctx.arc(d.x, d.y, d.r, 0, 7);
     ctx.fillStyle = '#ffd93d';
     ctx.fill();
+    ctx.strokeStyle = 'rgba(160,120,0,.8)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
   });
 
   M.forEach(m => {
@@ -852,8 +999,8 @@ function draw() {
     ctx.arc(m.x, m.y, m.r, 0, 7);
     ctx.fillStyle = m.fl > 0 ? '#fff' : m.c;
     ctx.fill();
-    ctx.strokeStyle = 'rgba(0,0,0,0.5)';
-    ctx.lineWidth = 1;
+    ctx.strokeStyle = 'rgba(0,0,0,0.7)';
+    ctx.lineWidth = 1.5;
     ctx.stroke();
     if (m.hp < m.mhp) {
       let w = m.r * 1.5, barY = m.y + m.r + 4;
@@ -868,27 +1015,27 @@ function draw() {
     }
   });
 
-  // 花瓣：冷却时淡出；且只在角色圈外才露出来
-  ctx.save();
+  // 花瓣先画（在角色下层），角色范围内的被角色挡住
   P.pts.forEach(p => {
-    if (p.appear <= 0.01) return;
+    if (p.cd > 0) return;
     let a = P.ang + p.o;
-    let px = P.x + Math.cos(a) * currentPetalRadius;
-    let py = P.y + Math.sin(a) * currentPetalRadius;
-    // 花瓣圆离角色圆心距离 - 花瓣半径 < 角色半径，则完全被角色挡住
-    let dToCenter = Math.hypot(px - P.x, py - P.y);
-    if (dToCenter - p.r < P.r) return;
-    ctx.globalAlpha = p.appear;
+    let baseDist = currentPetalRadius;
+    let dist = baseDist;
+    if (p.pop > 0) {
+      // 刚冷却完，从角色中心附近弹到轨道
+      dist = P.r + (baseDist - P.r) * (1 - p.pop);
+      if (dist < P.r) dist = P.r;
+    }
+    let px = P.x + Math.cos(a) * dist;
+    let py = P.y + Math.sin(a) * dist;
     ctx.beginPath();
     ctx.arc(px, py, p.r, 0, 7);
     ctx.fillStyle = '#ff6b9d';
     ctx.fill();
-    ctx.strokeStyle = '#c94f7c';
-    ctx.lineWidth = 1;
+    ctx.strokeStyle = '#8a2e52';
+    ctx.lineWidth = 1.5;
     ctx.stroke();
   });
-  ctx.globalAlpha = 1;
-  ctx.restore();
 
   drawPlayer(P.x, P.y);
 
@@ -940,25 +1087,24 @@ function drawGridScreen() {
 function drawPlayer(x, y, layoutPreview) {
   ctx.beginPath();
   ctx.arc(x, y, P.r, 0, 7);
-  ctx.fillStyle = P.fl > 0 ? '#f44' : '#4dabf7';
+  ctx.fillStyle = P.fl > 0 ? '#e06262' : '#4dabf7';
   ctx.fill();
-  ctx.strokeStyle = '#1c5a8a';
-  ctx.lineWidth = 1;
+  ctx.strokeStyle = '#163f63';
+  ctx.lineWidth = 1.5;
   ctx.stroke();
 
   if (layoutPreview) return;
 
   if (P.arrowAlpha > 0.01) {
     let angle = settings.isLayoutMode ? -Math.PI / 2 : P.arrowAngle;
-    if (!settings.isLayoutMode && P.arrowAlpha > 0 && P.stillTimer === 0 && Math.hypot(P.vx, P.vy) <= 0.2) {
-      angle = P.arrowAngle;
-    }
     let dist = P.r + 15;
     ctx.save();
     ctx.globalAlpha = P.arrowAlpha;
     ctx.translate(x + Math.cos(angle) * dist, y + Math.sin(angle) * dist);
     ctx.rotate(angle);
     ctx.fillStyle = '#fff';
+    ctx.strokeStyle = 'rgba(0,0,0,0.7)';
+    ctx.lineWidth = 1.5;
     if (settings.arrowStyle === 1) {
       ctx.beginPath();
       ctx.moveTo(8, 0);
@@ -966,6 +1112,7 @@ function drawPlayer(x, y, layoutPreview) {
       ctx.lineTo(-4, 6);
       ctx.closePath();
       ctx.fill();
+      ctx.stroke();
     } else if (settings.arrowStyle === 2) {
       ctx.beginPath();
       ctx.moveTo(8, 0);
@@ -973,38 +1120,71 @@ function drawPlayer(x, y, layoutPreview) {
       ctx.arcTo(-4, 6, 8, 0, 3);
       ctx.arcTo(8, 0, -4, -6, 3);
       ctx.fill();
+      ctx.stroke();
     } else if (settings.arrowStyle === 3) {
       ctx.beginPath();
       ctx.arc(0, 0, 8, -Math.PI / 2, Math.PI / 2);
       ctx.arc(-4, 0, 6, Math.PI / 2, -Math.PI / 2, true);
       ctx.closePath();
       ctx.fill();
+      ctx.stroke();
     } else if (settings.arrowStyle === 4) {
       ctx.beginPath();
       ctx.moveTo(10, 0);
       ctx.quadraticCurveTo(-5, 10, -2, 0);
       ctx.quadraticCurveTo(-5, -10, 10, 0);
       ctx.fill();
+      ctx.stroke();
     }
     ctx.restore();
   }
 }
 
 function drawPlayerHUD() {
-  let scale = cur.hpSize;
-  let hx = uiPos.hp.x * scale, hy = uiPos.hp.y * scale;
-  let hr = 20 * scale;
-  let barW = 120 * scale, barH = 24 * scale;
-  ctx.globalAlpha = cur.hpAlpha;
+  let aScale = cur.avatarSize;
+  let aAlpha = cur.avatarAlpha;
+  let avX = uiPos.avatar.x;
+  let avY = uiPos.avatar.y;
+  let avR = 20 * aScale;
+
+  // 头像
+  ctx.globalAlpha = aAlpha;
   ctx.beginPath();
-  ctx.arc(hx, hy, hr, 0, 7);
-  ctx.fillStyle = '#4dabf7';
+  ctx.arc(avX, avY, avR, 0, 7);
+  ctx.fillStyle = P.fl > 0 ? '#e06262' : '#4dabf7';
   ctx.fill();
-  ctx.strokeStyle = '#1c5a8a';
-  ctx.lineWidth = 3 * scale;
+  ctx.strokeStyle = '#163f63';
+  ctx.lineWidth = 1.5;
   ctx.stroke();
+  ctx.globalAlpha = 1;
+
+  // 头像高亮
+  if (hl.avatar > 0.01) {
+    ctx.save();
+    ctx.globalAlpha = hl.avatar;
+    ctx.strokeStyle = '#ffd93d';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([6, 4]);
+    ctx.beginPath();
+    ctx.arc(avX, avY, avR + 8, 0, 7);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // 血条
+  let hScale = cur.hpSize;
+  let hAlpha = cur.hpAlpha;
+  let barX = uiPos.hpBar.x;
+  let barY = uiPos.hpBar.y;
+  let barW = 120 * hScale;
+  let barH = 24 * hScale;
+  let halfH = barH / 2;
+
+  ctx.globalAlpha = hAlpha;
 
   function roundRect(x, y, w, h, r) {
+    if (w < 2 * r) r = w / 2;
+    if (h < 2 * r) r = h / 2;
     ctx.beginPath();
     ctx.moveTo(x + r, y);
     ctx.arcTo(x + w, y, x + w, y + h, r);
@@ -1014,31 +1194,43 @@ function drawPlayerHUD() {
     ctx.closePath();
   }
 
-  roundRect(hx + 30 * scale, hy - barH / 2, barW, barH, 10 * scale);
+  roundRect(barX - barW / 2, barY - halfH, barW, barH, 10 * hScale);
   ctx.fillStyle = 'rgba(0,0,0,0.5)';
   ctx.fill();
 
   if (P.displayHp > 0) {
-    roundRect(hx + 30 * scale, hy - barH / 2, barW * (P.displayHp / P.mhp), barH, 10 * scale);
-    ctx.fillStyle = '#8b0000';
+    roundRect(barX - barW / 2, barY - halfH, barW * (P.displayHp / P.mhp), barH, 10 * hScale);
+    ctx.fillStyle = '#7d1a1a';
     ctx.fill();
   }
   if (P.hp > 0) {
-    roundRect(hx + 30 * scale, hy - barH / 2, barW * (P.hp / P.mhp), barH, 10 * scale);
-    ctx.fillStyle = '#ff4444';
+    roundRect(barX - barW / 2, barY - halfH, barW * (P.hp / P.mhp), barH, 10 * hScale);
+    ctx.fillStyle = '#e05353';
     ctx.fill();
   }
-  if (settings.hpCfg.showNumber) {
+  if (settings.hpBarCfg.showNumber) {
     ctx.fillStyle = '#fff';
-    ctx.font = `bold ${14 * scale}px monospace`;
-    ctx.textAlign = 'left';
+    ctx.font = `bold ${14 * hScale}px monospace`;
+    ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(`${Math.round(P.hp)}/${P.mhp}`, hx + 45 * scale, hy + 1);
+    ctx.fillText(`${Math.round(P.hp)}/${P.mhp}`, barX, barY + 1);
   }
   ctx.globalAlpha = 1;
+
+  // 血条高亮
+  if (hl.hpBar > 0.01) {
+    ctx.save();
+    ctx.globalAlpha = hl.hpBar;
+    ctx.strokeStyle = '#ffd93d';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([6, 4]);
+    roundRect(barX - barW / 2 - 6, barY - halfH - 6, barW + 12, barH + 12, 12 * hScale);
+    ctx.stroke();
+    ctx.restore();
+  }
 }
 
-// 小地图三档缩放
+// 小地图三档
 let mapZoom = 0;
 const mapSizes = [
   { w: 80, h: 80, top: 20, right: 80 },
@@ -1078,7 +1270,6 @@ function drawMinimap() {
   mmCtx.fillStyle = 'rgba(0,0,0,0.5)';
   mmCtx.fillRect(0, 0, w, h);
 
-  // 点固定大小，不随地图变大变小
   const dotR = 2;
   mmCtx.fillStyle = '#f44';
   M.forEach(m => {
@@ -1116,27 +1307,37 @@ function drawJoy(bx, by, kx, ky, dx, dy, alpha) {
   ctx.globalAlpha = 1;
 }
 
-// 自定义键位命中：左上角血条可拖、摇杆可拖、假怪/玩家/A/B/齿轮/地图
+// 自定义键位命中 + 拖拽（互斥，不带动中间角色）
 let draggingUI = null, dragUIStartX, dragUIStartY, dragUIInitX, dragUIInitY;
 cvs.addEventListener('touchstart', e => {
   if (!settings.isLayoutMode) return;
   const t = e.changedTouches[0];
   const tx = t.clientX, ty = t.clientY;
 
-  let hs = cur.hpSize;
-  let hx = uiPos.hp.x * hs, hy = uiPos.hp.y * hs, hr = 20 * hs;
-  let barW = 120 * hs, barH = 24 * hs;
-  let barX = hx + 30 * hs;
-  if (
-    Math.hypot(tx - hx, ty - hy) < hr + 20 ||
-    (tx >= barX && tx <= barX + barW && ty >= hy - barH / 2 && ty <= hy + barH / 2)
-  ) {
-    selectUIElement('hpbar');
-    draggingUI = 'hp';
+  // 头像
+  let avR = 20 * cur.avatarSize;
+  if (Math.hypot(tx - uiPos.avatar.x, ty - uiPos.avatar.y) < avR + 15) {
+    selectUIElement('avatar');
+    draggingUI = 'avatar';
     dragUIStartX = tx;
     dragUIStartY = ty;
-    dragUIInitX = uiPos.hp.x;
-    dragUIInitY = uiPos.hp.y;
+    dragUIInitX = uiPos.avatar.x;
+    dragUIInitY = uiPos.avatar.y;
+    e.preventDefault();
+    return;
+  }
+
+  // 血条
+  let hScale = cur.hpSize;
+  let barW = 120 * hScale, barH = 24 * hScale;
+  let barX = uiPos.hpBar.x, barY = uiPos.hpBar.y;
+  if (tx >= barX - barW / 2 - 6 && tx <= barX + barW / 2 + 6 && ty >= barY - barH / 2 - 6 && ty <= barY + barH / 2 + 6) {
+    selectUIElement('hpBar');
+    draggingUI = 'hpBar';
+    dragUIStartX = tx;
+    dragUIStartY = ty;
+    dragUIInitX = uiPos.hpBar.x;
+    dragUIInitY = uiPos.hpBar.y;
     e.preventDefault();
     return;
   }
@@ -1145,7 +1346,7 @@ cvs.addEventListener('touchstart', e => {
   let jr = JR * cur.joySize;
   let jx = uiPos.joy.x;
   let jy = uiPos.joy.y !== null ? uiPos.joy.y : FY;
-  if (Math.hypot(tx - jx, ty - jy) < jr + 20) {
+  if (Math.hypot(tx - jx, ty - jy) < jr + 15) {
     selectUIElement('joy');
     draggingUI = 'joy';
     dragUIStartX = tx;
@@ -1157,19 +1358,21 @@ cvs.addEventListener('touchstart', e => {
   }
 
   // 玩家
-  if (Math.hypot(tx - (uiPos.hp.x + 40), ty - (uiPos.hp.y + 40)) < P.r + 20) {
+  if (Math.hypot(tx - (uiPos.avatar.x + 40), ty - (uiPos.avatar.y + 40)) < P.r + 15) {
     selectUIElement('player');
+    e.preventDefault();
     return;
   }
 
-  // 假怪
+  // 假怪本体 + 血条
   let fx = W / 2 + 100, fy = H / 2;
   let fw = 30, fbarY = fy + 20 + 6;
   if (
-    Math.hypot(tx - fx, ty - fy) < 20 + 20 ||
-    (tx >= fx - fw / 2 && tx <= fx + fw / 2 && ty >= fbarY && ty <= fbarY + 4)
+    Math.hypot(tx - fx, ty - fy) < 20 + 15 ||
+    (tx >= fx - fw / 2 && tx <= fx + fw / 2 && ty >= fbarY && ty <= fbarY + 4 + 8)
   ) {
     selectUIElement('fakeMonster');
+    e.preventDefault();
     return;
   }
 }, { passive: false });
@@ -1180,9 +1383,12 @@ cvs.addEventListener('touchmove', e => {
   const tx = t.clientX, ty = t.clientY;
   let nx = dragUIInitX + (tx - dragUIStartX);
   let ny = dragUIInitY + (ty - dragUIStartY);
-  if (draggingUI === 'hp') {
-    uiPos.hp.x = nx;
-    uiPos.hp.y = ny;
+  if (draggingUI === 'avatar') {
+    uiPos.avatar.x = nx;
+    uiPos.avatar.y = ny;
+  } else if (draggingUI === 'hpBar') {
+    uiPos.hpBar.x = nx;
+    uiPos.hpBar.y = ny;
   } else if (draggingUI === 'joy') {
     uiPos.joy.x = nx;
     uiPos.joy.y = ny;
@@ -1197,4 +1403,4 @@ cvs.addEventListener('touchend', () => {
 requestAnimationFrame(loop);
 </script>
 </body>
-</html>
+  </html>
