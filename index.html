@@ -116,11 +116,25 @@ canvas { display: block; }
   transition: .2s;
 }
 .setting-row button:active { transform: scale(.95); }
+
+/* 滑块变短，更加圆滑 */
 .setting-row input[type="range"] {
-  flex: 1;
+  flex: 0 0 100px;
   margin: 0 6px;
   accent-color: #4dabf7;
+  height: 6px;
+  border-radius: 3px;
+  -webkit-appearance: none;
+  background: rgba(255,255,255,0.2);
 }
+.setting-row input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #4dabf7;
+}
+
 .pct-value {
   cursor: pointer;
   color: #4dabf7;
@@ -179,14 +193,11 @@ canvas { display: block; }
 }
 .dynamic-inner { transition: opacity .18s ease; }
 .dynamic-inner.fade { opacity: 0; }
-#exitWrap {
-  margin-top: 10px;
-  padding: 6px;
-  border: 2px solid rgba(255,107,157,.6);
-  border-radius: 14px;
-}
+
+/* 去掉外面包的，让按钮直接属于面板 */
 #exitLayoutMode {
   width: 100%;
+  margin-top: 10px;
   padding: 10px;
   border-radius: 10px;
   border: none;
@@ -223,9 +234,7 @@ canvas { display: block; }
   <div class="panel-content" id="layoutContent">
     <p style="font-size:12px;color:#aaa;margin:0 0 10px 0;">点击场景元素调专属设置：</p>
     <div id="dynamicSettings" class="dynamic-inner" style="display:flex;flex-direction:column;gap:10px;"></div>
-    <div id="exitWrap">
-      <button id="exitLayoutMode">保存并退出</button>
-    </div>
+    <button id="exitLayoutMode">保存并退出</button>
   </div>
 </div>
 <script>
@@ -273,7 +282,7 @@ let settings = {
 
 const uiPos = {
   avatar: { x: 60, y: 60 },
-  hpBar: { x: 150, y: 60 },
+  hpBar: { x: 160, y: 60 },
   joy: { x: 100, y: null }
 };
 
@@ -294,8 +303,13 @@ const layoutPanel = document.getElementById('layoutPanel');
 const dynamicSettings = document.getElementById('dynamicSettings');
 
 function animatePanelHeight() {
-  const target = layoutPanel.querySelector('.panel-content').scrollHeight + 30;
-  layoutPanel.style.height = target + 'px';
+  const content = layoutPanel.querySelector('.panel-content');
+  if (layoutPanel.classList.contains('collapsed')) {
+    layoutPanel.style.height = '60px';
+  } else {
+    const target = content.scrollHeight + 40;
+    layoutPanel.style.height = target + 'px';
+  }
 }
 
 function openSettingsPanel() { settingsPanel.classList.add('show'); }
@@ -366,6 +380,12 @@ document.getElementById('exitLayoutMode').onclick = () => {
 document.getElementById('toggleCollapse').onclick = () => {
   layoutPanel.classList.toggle('collapsed');
   document.getElementById('toggleCollapse').innerText = layoutPanel.classList.contains('collapsed') ? '▲' : '▼';
+  const content = layoutPanel.querySelector('.panel-content');
+  if (layoutPanel.classList.contains('collapsed')) {
+    content.style.opacity = '0';
+  } else {
+    setTimeout(() => { content.style.opacity = '1'; }, 50);
+  }
   animatePanelHeight();
 };
 
@@ -660,9 +680,12 @@ const P = {
   pts: [], n: 5, ang: 0, fl: 0, redFlash: 0,
   arrowAlpha: 0, stillTimer: 0, arrowAngle: 0, arrowTargetAngle: 0
 };
-function initP(n) {
+function initP(n, initialCd = 0) {
   P.pts = [];
-  for (let i = 0; i < n; i++) P.pts.push({ o: i * (Math.PI * 2 / n), cd: 0, r: 10, appear: 1, pop: 0 });
+  for (let i = 0; i < n; i++) {
+    let isNew = (i === n - 1) && initialCd > 0;
+    P.pts.push({ o: i * (Math.PI * 2 / n), cd: isNew ? initialCd : 0, r: 10, appear: isNew ? 0 : 1, pop: 0 });
+  }
 }
 initP(P.n);
 
@@ -686,7 +709,7 @@ function spawn() {
   let baseSpeed = rnd(1, 1.8);
   let chaseSpeed = Math.min(rnd(1.5, 2.5), P.maxSpeed);
   M.push({
-    x, y, r: rnd(14, 22), hp: 40, mhp: 40,
+    x, y, vx: 0, vy: 0, r: rnd(14, 22), hp: 40, mhp: 40,
     sp: baseSpeed, chSp: chaseSpeed,
     c: `hsl(${rnd(0, 360)},70%,55%)`,
     fl: 0, acd: 0, ai: aiType, state: 0,
@@ -820,20 +843,20 @@ function clampBound(o, isPlayer) {
   let hit = false;
   if (o.x < MARGIN + o.r) {
     o.x = MARGIN + o.r;
-    if (isPlayer) o.vx = 0;
+    if (isPlayer || o.vx !== undefined) o.vx = 0;
     hit = true;
   } else if (o.x > MAXR - o.r) {
     o.x = MAXR - o.r;
-    if (isPlayer) o.vx = 0;
+    if (isPlayer || o.vx !== undefined) o.vx = 0;
     hit = true;
   }
   if (o.y < MARGIN + o.r) {
     o.y = MARGIN + o.r;
-    if (isPlayer) o.vy = 0;
+    if (isPlayer || o.vy !== undefined) o.vy = 0;
     hit = true;
   } else if (o.y > MAXR - o.r) {
     o.y = MAXR - o.r;
-    if (isPlayer) o.vy = 0;
+    if (isPlayer || o.vy !== undefined) o.vy = 0;
     hit = true;
   }
   return hit;
@@ -850,13 +873,16 @@ function upd(dt) {
   let targetRadius = 46;
   if (isALong || isAClicked) targetRadius = maxPetalRadius;
   if (isBLong || isBClicked) targetRadius = minPetalRadius;
-  let speed = 6;
-  if (currentPetalRadius < targetRadius) currentPetalRadius = Math.min(currentPetalRadius + speed * dt, targetRadius);
-  if (currentPetalRadius > targetRadius) currentPetalRadius = Math.max(currentPetalRadius - speed * dt, targetRadius);
+  
+  // 花瓣物理伸缩
+  let sp = (targetRadius - currentPetalRadius) * 0.15;
+  currentPetalRadius += sp * dt;
+  if(Math.abs(targetRadius - currentPetalRadius) < 0.1) currentPetalRadius = targetRadius;
 
   if (joy.act) {
     P.vx += joy.dx * P.accel * dt;
     P.vy += joy.dy * P.accel * dt;
+    joyFixedStill = 0;
   }
   P.vx *= Math.pow(P.friction, dt);
   P.vy *= Math.pow(P.friction, dt);
@@ -869,7 +895,8 @@ function upd(dt) {
   P.y += P.vy * dt;
   clampBound(P, true);
 
-  if (P.displayHp > P.hp) P.displayHp = Math.max(P.hp, P.displayHp - Math.max(0.35, (P.displayHp - P.hp) * 0.12) * dt);
+  // 主血条极度顺滑衰减
+  if (P.displayHp > P.hp) P.displayHp = Math.max(P.hp, P.displayHp - (P.displayHp - P.hp) * 0.05 * dt);
   if (P.displayHp < P.hp) P.displayHp = P.hp;
 
   P.ang += .04 * dt;
@@ -886,6 +913,38 @@ function upd(dt) {
 
   if (M.length < 15 && Math.random() < .05) spawn();
 
+  // 怪物之间的碰撞
+  for (let i = 0; i < M.length; i++) {
+    for (let j = i + 1; j < M.length; j++) {
+      let m1 = M[i], m2 = M[j];
+      if (m1.dying || m2.dying) continue;
+      let dx = m2.x - m1.x, dy = m2.y - m1.y;
+      let d = Math.hypot(dx, dy);
+      let minD = m1.r + m2.r;
+      if (d < minD && d > 0) {
+        let overlap = minD - d;
+        let nx = dx / d, ny = dy / d;
+        m1.x -= nx * overlap * 0.5;
+        m1.y -= ny * overlap * 0.5;
+        m2.x += nx * overlap * 0.5;
+        m2.y += ny * overlap * 0.5;
+        
+        if (m1.vx !== undefined && m2.vx !== undefined) {
+          let rvx = m2.vx - m1.vx, rvy = m2.vy - m1.vy;
+          let velAlongNormal = rvx * nx + rvy * ny;
+          if (velAlongNormal < 0) {
+            let e = 0.8;
+            let jImpulse = -(1 + e) * velAlongNormal / 2;
+            m1.vx -= jImpulse * nx;
+            m1.vy -= jImpulse * ny;
+            m2.vx += jImpulse * nx;
+            m2.vy += jImpulse * ny;
+          }
+        }
+      }
+    }
+  }
+
   for (let i = M.length - 1; i >= 0; i--) {
     let m = M[i];
     if (m.dying) {
@@ -900,19 +959,33 @@ function upd(dt) {
 
     let dx = P.x - m.x, dy = P.y - m.y, d = Math.hypot(dx, dy);
     if (m.ai === 2 && d < 250) m.state = 1;
+    
     if (m.state === 1) {
       if (d > 1) {
-        m.x += dx / d * m.chSp * dt;
-        m.y += dy / d * m.chSp * dt;
+        m.vx += (dx / d) * 0.2 * dt;
+        m.vy += (dy / d) * 0.2 * dt;
       }
     } else if (m.ai === 1 || m.ai === 2 || m.ai === 3) {
       m.wanderAngle += rnd(-0.1, 0.1);
-      m.x += Math.cos(m.wanderAngle) * m.sp * dt;
-      m.y += Math.sin(m.wanderAngle) * m.sp * dt;
+      m.vx += Math.cos(m.wanderAngle) * 0.1 * dt;
+      m.vy += Math.sin(m.wanderAngle) * 0.1 * dt;
     }
+    
+    // 怪物摩擦力与限速
+    m.vx *= Math.pow(0.9, dt);
+    m.vy *= Math.pow(0.9, dt);
+    let mSpd = Math.hypot(m.vx, m.vy);
+    let limitSpd = m.state === 1 ? m.chSp : m.sp;
+    if (mSpd > limitSpd) {
+      m.vx = m.vx / mSpd * limitSpd;
+      m.vy = m.vy / mSpd * limitSpd;
+    }
+    m.x += m.vx * dt;
+    m.y += m.vy * dt;
     if (clampBound(m, false)) {
       m.wanderAngle += Math.PI * (0.6 + Math.random() * 0.8);
     }
+
     if (d < m.r + P.r) {
       let angle = Math.atan2(P.y - m.y, P.x - m.x);
       let overlap = (m.r + P.r) - d;
@@ -922,6 +995,8 @@ function upd(dt) {
       m.y -= Math.sin(angle) * overlap * 0.5;
       P.vx += Math.cos(angle) * 2;
       P.vy += Math.sin(angle) * 2;
+      m.vx -= Math.cos(angle) * 2;
+      m.vy -= Math.sin(angle) * 2;
       if (m.acd <= 0) {
         P.hp -= 8;
         P.fl = 4;
@@ -944,10 +1019,10 @@ function upd(dt) {
         p.cd = 20;
         if (m.ai === 3) m.state = 1;
         
-        // 击退
+        // 怪物击退物理
         let kbAngle = Math.atan2(m.y - P.y, m.x - P.x);
-        m.x += Math.cos(kbAngle) * 8;
-        m.y += Math.sin(kbAngle) * 8;
+        m.vx += Math.cos(kbAngle) * 4;
+        m.vy += Math.sin(kbAngle) * 4;
 
         if (settings.monstCfg.showDmg) {
           spawnDmgText(m.x, m.y - m.r - 10, '-12', '#ffd93d');
@@ -961,7 +1036,6 @@ function upd(dt) {
     }
   }
 
-  // 更新飘字
   for (let i = DMG_TEXTS.length - 1; i >= 0; i--) {
     let d = DMG_TEXTS[i];
     if (d.life > 0) {
@@ -981,7 +1055,7 @@ function upd(dt) {
     d.t -= dt / 60;
     if (dst(d, P) < P.r + d.r) {
       P.n = Math.min(P.n + 1, 10);
-      initP(P.n);
+      initP(P.n, 30); // 拾取新花瓣进入30帧冷却
       D.splice(i, 1);
     } else if (d.t <= 0) {
       D.splice(i, 1);
@@ -1015,7 +1089,8 @@ function upd(dt) {
       P.arrowAlpha = Math.max(0, P.arrowAlpha - 0.02 * dt);
     }
   }
-  P.arrowAngle += shortestAngle(P.arrowAngle, P.arrowTargetAngle) * Math.min(1, 0.35 * dt);
+  // 箭头极速转向
+  P.arrowAngle += shortestAngle(P.arrowAngle, P.arrowTargetAngle) * Math.min(1, 0.55 * dt);
 }
 
 function draw() {
@@ -1024,8 +1099,6 @@ function draw() {
 
   if (settings.isLayoutMode) {
     drawGridScreen();
-    
-    // 玩家预览固定在屏幕正中心
     drawPlayer(W/2, H/2, true);
     
     if (hl.pPreview > 0.01) {
@@ -1040,7 +1113,6 @@ function draw() {
       ctx.restore();
     }
 
-    // 玩家预览小血条
     ctx.globalAlpha = settings.pPreviewCfg.alpha;
     if (settings.pPreviewCfg.showHpBar) {
       let w = 30, barY = H/2 + P.r + 6;
@@ -1073,7 +1145,6 @@ function draw() {
       ctx.restore();
     }
 
-    // 假怪
     let fx = W / 2 + 150, fy = H / 2;
     ctx.beginPath();
     ctx.arc(fx, fy, 20, 0, 7);
@@ -1216,7 +1287,6 @@ function draw() {
 
   drawPlayer(P.x, P.y);
 
-  // 绘制飘字
   DMG_TEXTS.forEach(d => {
     ctx.save();
     ctx.globalAlpha = d.alpha;
@@ -1433,9 +1503,8 @@ let mapTransitioning = false;
 
 function applyMapZoom(animate) {
   if (mapZoom === 0) {
-    const baseW = 80, baseH = 80;
-    minimapContainer.style.width = (baseW * settings.mapCfg.size) + 'px';
-    minimapContainer.style.height = (baseH * settings.mapCfg.size) + 'px';
+    minimapContainer.style.width = (80 * settings.mapCfg.size) + 'px';
+    minimapContainer.style.height = (80 * settings.mapCfg.size) + 'px';
     minimapContainer.style.top = '20px';
     minimapContainer.style.left = 'auto';
     minimapContainer.style.right = '80px';
@@ -1443,25 +1512,23 @@ function applyMapZoom(animate) {
   } else if (mapZoom === 1) {
     const baseW = 140, baseH = 140;
     const dir = settings.mapCfg.expandDir;
-    const rightBase = 80;
-    const topBase = 20;
     minimapContainer.style.width = (baseW * settings.mapCfg.size) + 'px';
     minimapContainer.style.height = (baseH * settings.mapCfg.size) + 'px';
     if (dir === 'lefttop') {
-      minimapContainer.style.top = topBase + 'px';
-      minimapContainer.style.right = (rightBase + (baseW - 80)) + 'px';
+      minimapContainer.style.top = '20px';
+      minimapContainer.style.right = (80 + (baseW - 80)) + 'px';
       minimapContainer.style.left = 'auto';
     } else if (dir === 'righttop') {
-      minimapContainer.style.top = topBase + 'px';
-      minimapContainer.style.right = rightBase + 'px';
+      minimapContainer.style.top = '20px';
+      minimapContainer.style.right = '80px';
       minimapContainer.style.left = 'auto';
     } else if (dir === 'leftbottom') {
-      minimapContainer.style.top = (topBase + (baseH - 80)) + 'px';
-      minimapContainer.style.right = (rightBase + (baseW - 80)) + 'px';
+      minimapContainer.style.top = (20 + (baseH - 80)) + 'px';
+      minimapContainer.style.right = (80 + (baseW - 80)) + 'px';
       minimapContainer.style.left = 'auto';
     } else {
-      minimapContainer.style.top = (topBase + (baseH - 80)) + 'px';
-      minimapContainer.style.right = rightBase + 'px';
+      minimapContainer.style.top = (20 + (baseH - 80)) + 'px';
+      minimapContainer.style.right = '80px';
       minimapContainer.style.left = 'auto';
     }
     minimapContainer.style.transform = 'none';
@@ -1518,6 +1585,15 @@ function drawJoy(bx, by, kx, ky, dx, dy, alpha) {
   ctx.globalAlpha = alpha * cur.joyAlpha;
   let size = cur.joySize;
   let jr = JR * size, kr = KR * size;
+  
+  // 松手后小球平滑滑回中心
+  let targetKx = bx;
+  let targetKy = by;
+  if (joy.act) {
+    targetKx = kx;
+    targetKy = ky;
+  }
+  
   ctx.beginPath();
   ctx.arc(bx, by, jr, 0, 7);
   ctx.fillStyle = 'rgba(255,255,255,0.1)';
@@ -1525,9 +1601,10 @@ function drawJoy(bx, by, kx, ky, dx, dy, alpha) {
   ctx.strokeStyle = 'rgba(255,255,255,0.4)';
   ctx.lineWidth = 2;
   ctx.stroke();
+  
   if (settings.joyCfg.showHead) {
     ctx.beginPath();
-    ctx.arc(kx, ky, kr, 0, 7);
+    ctx.arc(targetKx, targetKy, kr, 0, 7);
     ctx.fillStyle = 'rgba(77,171,247,0.8)';
     ctx.fill();
     ctx.strokeStyle = '#fff';
@@ -1537,6 +1614,7 @@ function drawJoy(bx, by, kx, ky, dx, dy, alpha) {
   ctx.globalAlpha = 1;
 }
 
+// 拖拽控制
 let draggingUI = null, dragUIStartX, dragUIStartY, dragUIInitX, dragUIInitY;
 cvs.addEventListener('touchstart', e => {
   if (!settings.isLayoutMode) return;
@@ -1583,14 +1661,12 @@ cvs.addEventListener('touchstart', e => {
     return;
   }
 
-  // 玩家预览点击判定
   if (Math.hypot(tx - W/2, ty - H/2) < P.r + 15) {
     selectUIElement('pPreview');
     e.preventDefault();
     return;
   }
 
-  // 玩家预览小血条判定
   let pBarY = H/2 + P.r + 6;
   if (tx >= W/2 - 15 - 10 && tx <= W/2 + 15 + 10 && ty >= pBarY - 10 && ty <= pBarY + 4 + 10) {
     selectUIElement('pPreviewHp');
