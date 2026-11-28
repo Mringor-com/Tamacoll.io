@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>花瓣游戏 (完整缝合版)</title>
+<title>花瓣游戏</title>
 <style>
 * { -webkit-tap-highlight-color: transparent; }
 body {
@@ -64,12 +64,12 @@ canvas { display: block; }
   overflow: hidden;
   z-index: 50;
   background: #000;
-  transition: width .3s cubic-bezier(.25,.8,.3,1),
-              height .3s cubic-bezier(.25,.8,.3,1),
-              top .3s cubic-bezier(.25,.8,.3,1),
-              left .3s cubic-bezier(.25,.8,.3,1),
-              right .3s cubic-bezier(.25,.8,.3,1),
-              transform .12s ease,
+  transition: width .5s cubic-bezier(.25,.8,.3,1),
+              height .5s cubic-bezier(.25,.8,.3,1),
+              top .5s cubic-bezier(.25,.8,.3,1),
+              left .5s cubic-bezier(.25,.8,.3,1),
+              right .5s cubic-bezier(.25,.8,.3,1),
+              transform .5s cubic-bezier(.25,.8,.3,1),
               opacity .18s ease;
 }
 #minimapContainer.pressed { transform: scale(.94); }
@@ -91,14 +91,14 @@ canvas { display: block; }
   flex-direction: column;
   gap: 12px;
   box-shadow: 0 10px 30px rgba(0,0,0,.8);
-  transition: transform .25s cubic-bezier(.175,.885,.32,1.275), opacity .25s, height .3s ease;
+  transition: transform .25s cubic-bezier(.175,.885,.32,1.275), opacity .25s, height .35s ease;
 }
 .panel.show {
   transform: translate(-50%,-50%) scale(1);
   opacity: 1;
   pointer-events: auto;
 }
-.panel h2 { margin: 0 0 10px 0; text-align: center; color: #4dabf7; font-size: 20px; }
+.panel h2 { margin: 0 0 10px 0; text-align: center; color: #4dabf7; font-size: 20px; transition: font-size 0.3s ease; }
 .setting-row {
   display: flex;
   justify-content: space-between;
@@ -184,7 +184,7 @@ canvas { display: block; }
 #layoutPanel.collapsed #layoutContent {
   max-height: 0;
 }
-#layoutPanel.collapsed h2 { margin: 0; font-size: 16px; }
+#layoutPanel.collapsed h2 { font-size: 16px; }
 #toggleCollapse {
   background: transparent;
   border: none;
@@ -210,18 +210,19 @@ canvas { display: block; }
 .dynamic-inner { transition: opacity .18s ease; }
 .dynamic-inner.fade { opacity: 0; }
 
-#exitLayoutMode {
+#saveExitBtn, #cancelExitBtn {
   width: 100%;
   margin-top: 10px;
   padding: 10px;
   border-radius: 10px;
   border: none;
-  background: #ff6b9d;
   color: #fff;
   font-weight: bold;
   transition: transform .12s ease;
 }
-#exitLayoutMode:active { transform: scale(.94); }
+#saveExitBtn { background: #ff6b9d; }
+#cancelExitBtn { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.3); margin-top: 6px; }
+#saveExitBtn:active, #cancelExitBtn:active { transform: scale(.94); }
 
 .dragging {
   border: 2px dashed #ffd93d !important;
@@ -252,7 +253,8 @@ canvas { display: block; }
   <div id="layoutContent">
     <p style="font-size:12px;color:#aaa;margin:0 0 10px 0;">点击场景元素调专属设置：</p>
     <div id="dynamicSettings" class="dynamic-inner" style="display:flex;flex-direction:column;gap:10px;"></div>
-    <button id="exitLayoutMode">保存并退出</button>
+    <button id="saveExitBtn">保存并退出</button>
+    <button id="cancelExitBtn">不保存退出</button>
   </div>
 </div>
 <script>
@@ -280,12 +282,10 @@ const WORLD = 3000;
 const MARGIN = 50;
 const MAXR = WORLD - MARGIN;
 
-let settings = {
+let defaultSettings = {
   joyMode: 'dynamic',
   keyMode: 'hold',
   screen: 'free',
-  isLayoutMode: false,
-  showUI: true,
   arrowStyle: 1,
   avatarCfg: { size: 1, alpha: 1 },
   hpBarCfg: { size: 1, alpha: 1, showNumber: true, showDmg: true },
@@ -298,11 +298,26 @@ let settings = {
   mapCfg: { size: 1, alpha: 1, expandDir: 'rightbottom' }
 };
 
-const uiPos = {
+let defaultUiPos = {
   avatar: { x: 60, y: 60 },
   hpBar: { x: 160, y: 60 },
   joy: { x: 100, y: null }
 };
+
+// 加载本地存储
+let settings = JSON.parse(JSON.stringify(defaultSettings));
+let uiPos = JSON.parse(JSON.stringify(defaultUiPos));
+let backupSettings, backupUiPos;
+
+try {
+  let savedSettings = localStorage.getItem('tamacoll_settings');
+  if (savedSettings) settings = JSON.parse(savedSettings);
+  let savedUi = localStorage.getItem('tamacoll_uipos');
+  if (savedUi) uiPos = JSON.parse(savedUi);
+} catch(e) {}
+
+settings.isLayoutMode = false;
+settings.showUI = true;
 
 const cur = {
   joySize: 1, joyAlpha: 1,
@@ -385,14 +400,31 @@ document.getElementById('enterLayoutMode').onclick = () => {
   closeSettingsPanel();
   layoutPanel.classList.add('show');
   settings.isLayoutMode = true;
+  // 备份当前数据以便不保存退出恢复
+  backupSettings = JSON.parse(JSON.stringify(settings));
+  backupUiPos = JSON.parse(JSON.stringify(uiPos));
+  
   dynamicSettings.innerHTML = '<p style="font-size:12px;color:#aaa;">点击场景元素进行专属调整</p>';
   animatePanelHeight();
 };
-document.getElementById('exitLayoutMode').onclick = () => {
+document.getElementById('saveExitBtn').onclick = () => {
   layoutPanel.classList.remove('show');
   settings.isLayoutMode = false;
   document.querySelectorAll('.dragging').forEach(el => el.classList.remove('dragging'));
   hlTarget = null;
+  // 保存到本地
+  localStorage.setItem('tamacoll_settings', JSON.stringify(settings));
+  localStorage.setItem('tamacoll_uipos', JSON.stringify(uiPos));
+  updateUIVisuals();
+};
+document.getElementById('cancelExitBtn').onclick = () => {
+  layoutPanel.classList.remove('show');
+  settings.isLayoutMode = false;
+  document.querySelectorAll('.dragging').forEach(el => el.classList.remove('dragging'));
+  hlTarget = null;
+  // 恢复之前的备份
+  settings = JSON.parse(JSON.stringify(backupSettings));
+  uiPos = JSON.parse(JSON.stringify(backupUiPos));
   updateUIVisuals();
 };
 document.getElementById('toggleCollapse').onclick = () => {
@@ -713,7 +745,7 @@ function initP(n, initialCd = 0) {
       cd: isNew ? initialCd : 0, 
       r: 10, 
       appear: isNew ? 0 : 1, 
-      pop: isNew ? 0 : 1 // 从0开始，产生从中心弹出的动画
+      pop: isNew ? 0 : 1 // 从0开始产生弹出
     });
   }
 }
@@ -729,7 +761,7 @@ function spawnDmgText(x, y, text, color) {
   DMG_TEXTS.push({
     x, y, text, color,
     vx: rnd(-1.5, 1.5), vy: rnd(-3.5, -2),
-    alpha: 0, life: 1, scale: 0.5
+    alpha: 0, life: 1, scale: 0.8 // 伤害字号缩小
   });
 }
 
@@ -1181,7 +1213,7 @@ function draw() {
       ctx.lineWidth = 2;
       ctx.setLineDash([6, 4]);
       ctx.beginPath();
-      ctx.arc(W/2, H/2, P.r + 4, 0, 7);
+      ctx.arc(W/2, H/2, P.r + 2, 0, 7); // 紧贴边缘
       ctx.stroke();
       ctx.restore();
     }
@@ -1202,7 +1234,7 @@ function draw() {
       ctx.lineWidth = 2;
       ctx.setLineDash([6, 4]);
       ctx.beginPath();
-      ctx.arc(fx, fy, 20 + 4, 0, 7);
+      ctx.arc(fx, fy, 20 + 2, 0, 7); // 紧贴边缘
       ctx.stroke();
       ctx.restore();
     }
@@ -1237,7 +1269,7 @@ function draw() {
       ctx.lineWidth = 2;
       ctx.setLineDash([6, 4]);
       ctx.beginPath();
-      ctx.arc(uiPos.joy.x, jy, JR * cur.joySize + 4, 0, 7);
+      ctx.arc(uiPos.joy.x, jy, JR * cur.joySize + 2, 0, 7); // 紧贴边缘
       ctx.stroke();
       ctx.restore();
     }
@@ -1342,7 +1374,7 @@ function draw() {
     ctx.save();
     ctx.globalAlpha = d.alpha;
     ctx.translate(d.x, d.y);
-    ctx.scale(d.scale, d.scale);
+    ctx.scale(d.scale * 0.7, d.scale * 0.7); // 伤害数字更小
     ctx.fillStyle = d.color;
     ctx.strokeStyle = 'rgba(0,0,0,0.8)';
     ctx.lineWidth = 3;
@@ -1486,7 +1518,7 @@ function drawPlayerHUD() {
     ctx.lineWidth = 2;
     ctx.setLineDash([6, 4]);
     ctx.beginPath();
-    ctx.arc(avX, avY, avR + 4, 0, 7);
+    ctx.arc(avX, avY, avR + 2, 0, 7);
     ctx.stroke();
     ctx.restore();
   }
@@ -1543,7 +1575,7 @@ function drawPlayerHUD() {
     ctx.strokeStyle = '#ffd93d';
     ctx.lineWidth = 2;
     ctx.setLineDash([6, 4]);
-    roundRect(barX - barW / 2 - 4, barY - halfH - 4, barW + 8, barH + 8, 12 * hScale);
+    roundRect(barX - barW / 2 - 2, barY - halfH - 2, barW + 4, barH + 4, 12 * hScale);
     ctx.stroke();
     ctx.restore();
   }
@@ -1599,7 +1631,7 @@ function applyMapZoom(animate) {
     setTimeout(() => {
       mapTransitioning = false;
       syncMinimapSize();
-    }, 320);
+    }, 520); // 动画时长增加
   } else {
     syncMinimapSize();
   }
@@ -1615,7 +1647,12 @@ minimapContainer.addEventListener('click', () => {
 function drawMinimap() {
   const w = minimapCanvas.width, h = minimapCanvas.height;
   if (w < 2 || h < 2) return;
-  const sx = w / WORLD, sy = h / WORLD;
+  
+  let viewRadius = 250; // 初始 500x500
+  if (mapZoom === 1) viewRadius = 1000;
+  if (mapZoom === 2) viewRadius = WORLD;
+
+  const sx = w / (viewRadius * 2), sy = h / (viewRadius * 2);
   mmCtx.clearRect(0, 0, w, h);
   mmCtx.fillStyle = 'rgba(0,0,0,0.5)';
   mmCtx.fillRect(0, 0, w, h);
@@ -1623,13 +1660,14 @@ function drawMinimap() {
   const dotR = 2;
   mmCtx.fillStyle = '#f44';
   M.forEach(m => {
+    if (Math.abs(m.x - P.x) > viewRadius || Math.abs(m.y - P.y) > viewRadius) return;
     mmCtx.beginPath();
-    mmCtx.arc(m.x * sx, m.y * sy, dotR, 0, 7);
+    mmCtx.arc((m.x - P.x + viewRadius) * sx, (m.y - P.y + viewRadius) * sy, dotR, 0, 7);
     mmCtx.fill();
   });
   mmCtx.fillStyle = '#4dabf7';
   mmCtx.beginPath();
-  mmCtx.arc(P.x * sx, P.y * sy, dotR, 0, 7);
+  mmCtx.arc(w/2, h/2, dotR, 0, 7);
   mmCtx.fill();
 }
 
@@ -1759,4 +1797,4 @@ cvs.addEventListener('touchend', () => {
 requestAnimationFrame(loop);
 </script>
 </body>
-  </html>
+</html>
