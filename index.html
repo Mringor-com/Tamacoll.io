@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>花瓣游戏</title>
+<title>花瓣游戏 (完整缝合版)</title>
 <style>
 * { -webkit-tap-highlight-color: transparent; }
 body {
@@ -121,7 +121,7 @@ canvas { display: block; }
 }
 .setting-row button:active { transform: scale(.94); }
 
-/* 滑块变短 */
+/* 缩短的圆滑白条 */
 .setting-row input[type="range"] {
   flex: 0 0 50px;
   margin: 0 6px;
@@ -175,7 +175,7 @@ canvas { display: block; }
   pointer-events: auto;
 }
 
-/* 抽屉效果（无淡入淡出） */
+/* 抽屉效果 */
 #layoutContent {
   overflow: hidden;
   transition: max-height .3s ease;
@@ -935,7 +935,6 @@ function upd(dt) {
   P.y += P.vy * dt;
   clampBound(P, true);
 
-  // 主血条极度顺滑衰减（红血条快，假血条极慢）
   if (P.displayHp > P.hp) {
     P.displayHp = Math.max(P.hp, P.displayHp - Math.max(0.3, (P.displayHp - P.hp) * 0.1) * dt);
     cur.hpBarDisplay = Math.max(P.hp, cur.hpBarDisplay - Math.max(1.5, (cur.hpBarDisplay - P.hp) * 0.3) * dt);
@@ -1002,7 +1001,6 @@ function upd(dt) {
     if (m.acd > 0) m.acd -= dt;
     if (m.redFlash > 0) m.redFlash -= 0.15 * dt;
 
-    // 怪物血条双色衰减
     if (m.displayHp > m.hp) {
       m.displayHp = Math.max(m.hp, m.displayHp - Math.max(0.3, (m.displayHp - m.hp) * 0.1) * dt);
       m.displayHpRed = Math.max(m.hp, m.displayHpRed - Math.max(1.5, (m.displayHpRed - m.hp) * 0.3) * dt);
@@ -1057,7 +1055,6 @@ function upd(dt) {
         m.acd = 7;
         P.redFlash = 1;
         if (settings.hpBarCfg.showDmg) {
-          // 从主角中心弹出伤害
           spawnDmgText(P.x, P.y, '-8', '#ff6b6b');
         }
       }
@@ -1079,7 +1076,6 @@ function upd(dt) {
         m.vy += Math.sin(kbAngle) * 0.5;
 
         if (settings.monstCfg.showDmg) {
-          // 从怪物中心弹出伤害
           spawnDmgText(m.x, m.y, '-12', '#ffd93d');
         }
         break;
@@ -1112,7 +1108,7 @@ function upd(dt) {
     d.t -= dt / 60;
     if (dst(d, P) < P.r + d.r) {
       P.n = Math.min(P.n + 1, 10);
-      initP(P.n, 30); // 拾取时新花瓣进入冷却，像挤出来一样
+      initP(P.n, 30);
       D.splice(i, 1);
     } else if (d.t <= 0) {
       D.splice(i, 1);
@@ -1158,7 +1154,6 @@ function draw() {
     drawGridScreen();
     drawPlayer(W/2, H/2, true);
     
-    // 仅画元素边缘的高亮，去掉外圈大黄线
     ctx.globalAlpha = settings.pPreviewCfg.alpha;
     if (settings.pPreviewCfg.showHpBar) {
       let w = 30, barY = H/2 + P.r + 6;
@@ -1186,7 +1181,7 @@ function draw() {
       ctx.lineWidth = 2;
       ctx.setLineDash([6, 4]);
       ctx.beginPath();
-      ctx.arc(W/2, H/2, P.r + 4, 0, 7); // 紧贴边缘
+      ctx.arc(W/2, H/2, P.r + 4, 0, 7);
       ctx.stroke();
       ctx.restore();
     }
@@ -1207,7 +1202,7 @@ function draw() {
       ctx.lineWidth = 2;
       ctx.setLineDash([6, 4]);
       ctx.beginPath();
-      ctx.arc(fx, fy, 20 + 4, 0, 7); // 紧贴边缘
+      ctx.arc(fx, fy, 20 + 4, 0, 7);
       ctx.stroke();
       ctx.restore();
     }
@@ -1242,7 +1237,7 @@ function draw() {
       ctx.lineWidth = 2;
       ctx.setLineDash([6, 4]);
       ctx.beginPath();
-      ctx.arc(uiPos.joy.x, jy, JR * cur.joySize + 4, 0, 7); // 紧贴边缘
+      ctx.arc(uiPos.joy.x, jy, JR * cur.joySize + 4, 0, 7);
       ctx.stroke();
       ctx.restore();
     }
@@ -1558,10 +1553,7 @@ let mapZoom = 0;
 let mapTransitioning = false;
 
 function applyMapZoom(animate) {
-  if (settings.isLayoutMode) {
-    // 自定义键位里千万不要触发缩放和位置改变，防止闪现
-    return;
-  }
+  if (settings.isLayoutMode) return;
   
   if (mapZoom === 0) {
     minimapContainer.style.width = (80 * settings.mapCfg.size) + 'px';
@@ -1767,4 +1759,4 @@ cvs.addEventListener('touchend', () => {
 requestAnimationFrame(loop);
 </script>
 </body>
-</html>
+  </html>
