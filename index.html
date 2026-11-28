@@ -219,6 +219,7 @@ canvas { display: block; }
   color: #fff;
   font-weight: bold;
   transition: transform .12s ease;
+  flex-shrink: 0;
 }
 #saveExitBtn { background: #ff6b9d; }
 #cancelExitBtn { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.3); margin-top: 6px; }
@@ -729,20 +730,19 @@ function initP(n, initialCd = 0) {
   for (let i = 0; i < n; i++) {
     let targetO = i * (Math.PI * 2 / n);
     let currentO = targetO;
-    
-    // 如果之前有这片花瓣，继承它的当前角度，实现平滑挤开
     if (oldPts && oldPts[i]) {
       currentO = oldPts[i].o;
+    } else {
+      currentO = targetO;
     }
-    
     let isNew = (i === n - 1) && initialCd > 0;
     P.pts.push({ 
       o: currentO, 
       targetO: targetO,
-      cd: isNew ? initialCd : 0, // 只有新花瓣进冷却
+      cd: isNew ? initialCd : 0, 
       r: 10, 
       appear: isNew ? 0 : 1, 
-      pop: isNew ? 0 : 1 
+      pop: isNew ? 0 : 1
     });
   }
 }
@@ -1190,10 +1190,22 @@ function draw() {
       ctx.beginPath();
       ctx.roundRect(W/2 - w / 2, barY, w, 4, 2);
       ctx.fill();
-      ctx.fillStyle = '#f44';
-      ctx.beginPath();
-      ctx.roundRect(W/2 - w / 2, barY, w * 0.5, 4, 2);
-      ctx.fill();
+      
+      // 预览残影血条
+      if (P.displayHp > 0) {
+        ctx.fillStyle = '#7d1a1a';
+        ctx.beginPath();
+        ctx.roundRect(W/2 - w / 2, barY, w * (P.displayHp / P.mhp), 4, 2);
+        ctx.fill();
+      }
+      // 预览真血条
+      if (cur.hpBarDisplay > 0) {
+        ctx.fillStyle = '#e05353';
+        ctx.beginPath();
+        ctx.roundRect(W/2 - w / 2, barY, w * (cur.hpBarDisplay / P.mhp), 4, 2);
+        ctx.fill();
+      }
+      
       if (settings.pPreviewCfg.showHpNum) {
         ctx.fillStyle = '#fff';
         ctx.font = '10px monospace';
@@ -1243,10 +1255,17 @@ function draw() {
       ctx.beginPath();
       ctx.roundRect(fx - w / 2, barY, w, 4, 2);
       ctx.fill();
-      ctx.fillStyle = '#f44';
+      
+      ctx.fillStyle = '#7d1a1a';
       ctx.beginPath();
       ctx.roundRect(fx - w / 2, barY, w * 0.5, 4, 2);
       ctx.fill();
+      
+      ctx.fillStyle = '#e05353';
+      ctx.beginPath();
+      ctx.roundRect(fx - w / 2, barY, w * 0.5, 4, 2);
+      ctx.fill();
+      
       if (settings.monstCfg.showHpNum) {
         ctx.fillStyle = '#fff';
         ctx.font = '10px monospace';
@@ -1794,4 +1813,4 @@ cvs.addEventListener('touchend', () => {
 requestAnimationFrame(loop);
 </script>
 </body>
-  </html>
+</html>
