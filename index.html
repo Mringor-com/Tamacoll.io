@@ -223,7 +223,6 @@ canvas { display: block; }
 }
 #exitLayoutMode:active { transform: scale(.94); }
 
-/* 元素自身的高亮框 */
 .dragging {
   border: 2px dashed #ffd93d !important;
   box-shadow: 0 0 15px #ffd93d;
@@ -714,7 +713,7 @@ function initP(n, initialCd = 0) {
       cd: isNew ? initialCd : 0, 
       r: 10, 
       appear: isNew ? 0 : 1, 
-      pop: isNew ? 0 : 1 
+      pop: isNew ? 0 : 1 // 从0开始，产生从中心弹出的动画
     });
   }
 }
@@ -1058,7 +1057,8 @@ function upd(dt) {
         m.acd = 7;
         P.redFlash = 1;
         if (settings.hpBarCfg.showDmg) {
-          spawnDmgText(P.x, P.y - P.r - 10, '-8', '#ff6b6b');
+          // 从主角中心弹出伤害
+          spawnDmgText(P.x, P.y, '-8', '#ff6b6b');
         }
       }
     }
@@ -1079,7 +1079,8 @@ function upd(dt) {
         m.vy += Math.sin(kbAngle) * 0.5;
 
         if (settings.monstCfg.showDmg) {
-          spawnDmgText(m.x, m.y - m.r - 10, '-12', '#ffd93d');
+          // 从怪物中心弹出伤害
+          spawnDmgText(m.x, m.y, '-12', '#ffd93d');
         }
         break;
       }
@@ -1111,7 +1112,7 @@ function upd(dt) {
     d.t -= dt / 60;
     if (dst(d, P) < P.r + d.r) {
       P.n = Math.min(P.n + 1, 10);
-      initP(P.n, 30);
+      initP(P.n, 30); // 拾取时新花瓣进入冷却，像挤出来一样
       D.splice(i, 1);
     } else if (d.t <= 0) {
       D.splice(i, 1);
@@ -1157,6 +1158,7 @@ function draw() {
     drawGridScreen();
     drawPlayer(W/2, H/2, true);
     
+    // 仅画元素边缘的高亮，去掉外圈大黄线
     ctx.globalAlpha = settings.pPreviewCfg.alpha;
     if (settings.pPreviewCfg.showHpBar) {
       let w = 30, barY = H/2 + P.r + 6;
@@ -1184,7 +1186,7 @@ function draw() {
       ctx.lineWidth = 2;
       ctx.setLineDash([6, 4]);
       ctx.beginPath();
-      ctx.arc(W/2, H/2, P.r + 8, 0, 7);
+      ctx.arc(W/2, H/2, P.r + 4, 0, 7); // 紧贴边缘
       ctx.stroke();
       ctx.restore();
     }
@@ -1205,7 +1207,7 @@ function draw() {
       ctx.lineWidth = 2;
       ctx.setLineDash([6, 4]);
       ctx.beginPath();
-      ctx.arc(fx, fy, 20 + 8, 0, 7);
+      ctx.arc(fx, fy, 20 + 4, 0, 7); // 紧贴边缘
       ctx.stroke();
       ctx.restore();
     }
@@ -1240,7 +1242,7 @@ function draw() {
       ctx.lineWidth = 2;
       ctx.setLineDash([6, 4]);
       ctx.beginPath();
-      ctx.arc(uiPos.joy.x, jy, JR * cur.joySize + 8, 0, 7);
+      ctx.arc(uiPos.joy.x, jy, JR * cur.joySize + 4, 0, 7); // 紧贴边缘
       ctx.stroke();
       ctx.restore();
     }
@@ -1299,14 +1301,12 @@ function draw() {
       ctx.roundRect(m.x - w / 2, barY, w, 4, 2);
       ctx.fill();
       
-      // 假血条
       if (m.displayHpRed > 0) {
         ctx.fillStyle = '#7d1a1a';
         ctx.beginPath();
         ctx.roundRect(m.x - w / 2, barY, w * (m.displayHpRed / m.mhp), 4, 2);
         ctx.fill();
       }
-      // 真血条
       if (m.displayHp > 0) {
         ctx.fillStyle = '#e05353';
         ctx.beginPath();
@@ -1491,7 +1491,7 @@ function drawPlayerHUD() {
     ctx.lineWidth = 2;
     ctx.setLineDash([6, 4]);
     ctx.beginPath();
-    ctx.arc(avX, avY, avR + 8, 0, 7);
+    ctx.arc(avX, avY, avR + 4, 0, 7);
     ctx.stroke();
     ctx.restore();
   }
@@ -1548,7 +1548,7 @@ function drawPlayerHUD() {
     ctx.strokeStyle = '#ffd93d';
     ctx.lineWidth = 2;
     ctx.setLineDash([6, 4]);
-    roundRect(barX - barW / 2 - 6, barY - halfH - 6, barW + 12, barH + 12, 12 * hScale);
+    roundRect(barX - barW / 2 - 4, barY - halfH - 4, barW + 8, barH + 8, 12 * hScale);
     ctx.stroke();
     ctx.restore();
   }
@@ -1558,6 +1558,11 @@ let mapZoom = 0;
 let mapTransitioning = false;
 
 function applyMapZoom(animate) {
+  if (settings.isLayoutMode) {
+    // 自定义键位里千万不要触发缩放和位置改变，防止闪现
+    return;
+  }
+  
   if (mapZoom === 0) {
     minimapContainer.style.width = (80 * settings.mapCfg.size) + 'px';
     minimapContainer.style.height = (80 * settings.mapCfg.size) + 'px';
