@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>花瓣游戏</title>
+<title>花瓣游戏 (最终完美版)</title>
 <style>
 * { -webkit-tap-highlight-color: transparent; }
 body {
@@ -64,12 +64,12 @@ canvas { display: block; }
   overflow: hidden;
   z-index: 50;
   background: #000;
-  transition: width .5s cubic-bezier(.25,.8,.3,1),
-              height .5s cubic-bezier(.25,.8,.3,1),
-              top .5s cubic-bezier(.25,.8,.3,1),
-              left .5s cubic-bezier(.25,.8,.3,1),
-              right .5s cubic-bezier(.25,.8,.3,1),
-              transform .5s cubic-bezier(.25,.8,.3,1),
+  transition: width .4s cubic-bezier(.25,.8,.3,1),
+              height .4s cubic-bezier(.25,.8,.3,1),
+              top .4s cubic-bezier(.25,.8,.3,1),
+              left .4s cubic-bezier(.25,.8,.3,1),
+              right .4s cubic-bezier(.25,.8,.3,1),
+              transform .4s cubic-bezier(.25,.8,.3,1),
               opacity .18s ease;
 }
 #minimapContainer.pressed { transform: scale(.94); }
@@ -91,7 +91,7 @@ canvas { display: block; }
   flex-direction: column;
   gap: 12px;
   box-shadow: 0 10px 30px rgba(0,0,0,.8);
-  transition: transform .25s cubic-bezier(.175,.885,.32,1.275), opacity .25s, height .35s ease;
+  transition: transform .25s cubic-bezier(.175,.885,.32,1.275), opacity .25s, height .3s ease;
 }
 .panel.show {
   transform: translate(-50%,-50%) scale(1);
@@ -304,7 +304,6 @@ let defaultUiPos = {
   joy: { x: 100, y: null }
 };
 
-// 加载本地存储
 let settings = JSON.parse(JSON.stringify(defaultSettings));
 let uiPos = JSON.parse(JSON.stringify(defaultUiPos));
 let backupSettings, backupUiPos;
@@ -400,7 +399,6 @@ document.getElementById('enterLayoutMode').onclick = () => {
   closeSettingsPanel();
   layoutPanel.classList.add('show');
   settings.isLayoutMode = true;
-  // 备份当前数据以便不保存退出恢复
   backupSettings = JSON.parse(JSON.stringify(settings));
   backupUiPos = JSON.parse(JSON.stringify(uiPos));
   
@@ -412,7 +410,6 @@ document.getElementById('saveExitBtn').onclick = () => {
   settings.isLayoutMode = false;
   document.querySelectorAll('.dragging').forEach(el => el.classList.remove('dragging'));
   hlTarget = null;
-  // 保存到本地
   localStorage.setItem('tamacoll_settings', JSON.stringify(settings));
   localStorage.setItem('tamacoll_uipos', JSON.stringify(uiPos));
   updateUIVisuals();
@@ -422,7 +419,6 @@ document.getElementById('cancelExitBtn').onclick = () => {
   settings.isLayoutMode = false;
   document.querySelectorAll('.dragging').forEach(el => el.classList.remove('dragging'));
   hlTarget = null;
-  // 恢复之前的备份
   settings = JSON.parse(JSON.stringify(backupSettings));
   uiPos = JSON.parse(JSON.stringify(backupUiPos));
   updateUIVisuals();
@@ -733,19 +729,20 @@ function initP(n, initialCd = 0) {
   for (let i = 0; i < n; i++) {
     let targetO = i * (Math.PI * 2 / n);
     let currentO = targetO;
+    
+    // 如果之前有这片花瓣，继承它的当前角度，实现平滑挤开
     if (oldPts && oldPts[i]) {
       currentO = oldPts[i].o;
-    } else {
-      currentO = targetO;
     }
+    
     let isNew = (i === n - 1) && initialCd > 0;
     P.pts.push({ 
       o: currentO, 
       targetO: targetO,
-      cd: isNew ? initialCd : 0, 
+      cd: isNew ? initialCd : 0, // 只有新花瓣进冷却
       r: 10, 
       appear: isNew ? 0 : 1, 
-      pop: isNew ? 0 : 1 // 从0开始产生弹出
+      pop: isNew ? 0 : 1 
     });
   }
 }
@@ -761,7 +758,7 @@ function spawnDmgText(x, y, text, color) {
   DMG_TEXTS.push({
     x, y, text, color,
     vx: rnd(-1.5, 1.5), vy: rnd(-3.5, -2),
-    alpha: 0, life: 1, scale: 0.8 // 伤害字号缩小
+    alpha: 0, life: 1, scale: 0.6
   });
 }
 
@@ -1213,7 +1210,7 @@ function draw() {
       ctx.lineWidth = 2;
       ctx.setLineDash([6, 4]);
       ctx.beginPath();
-      ctx.arc(W/2, H/2, P.r + 2, 0, 7); // 紧贴边缘
+      ctx.arc(W/2, H/2, P.r + 2, 0, 7);
       ctx.stroke();
       ctx.restore();
     }
@@ -1234,7 +1231,7 @@ function draw() {
       ctx.lineWidth = 2;
       ctx.setLineDash([6, 4]);
       ctx.beginPath();
-      ctx.arc(fx, fy, 20 + 2, 0, 7); // 紧贴边缘
+      ctx.arc(fx, fy, 20 + 2, 0, 7);
       ctx.stroke();
       ctx.restore();
     }
@@ -1269,7 +1266,7 @@ function draw() {
       ctx.lineWidth = 2;
       ctx.setLineDash([6, 4]);
       ctx.beginPath();
-      ctx.arc(uiPos.joy.x, jy, JR * cur.joySize + 2, 0, 7); // 紧贴边缘
+      ctx.arc(uiPos.joy.x, jy, JR * cur.joySize + 2, 0, 7);
       ctx.stroke();
       ctx.restore();
     }
@@ -1374,7 +1371,7 @@ function draw() {
     ctx.save();
     ctx.globalAlpha = d.alpha;
     ctx.translate(d.x, d.y);
-    ctx.scale(d.scale * 0.7, d.scale * 0.7); // 伤害数字更小
+    ctx.scale(d.scale * 0.7, d.scale * 0.7);
     ctx.fillStyle = d.color;
     ctx.strokeStyle = 'rgba(0,0,0,0.8)';
     ctx.lineWidth = 3;
@@ -1631,7 +1628,7 @@ function applyMapZoom(animate) {
     setTimeout(() => {
       mapTransitioning = false;
       syncMinimapSize();
-    }, 520); // 动画时长增加
+    }, 420);
   } else {
     syncMinimapSize();
   }
@@ -1648,7 +1645,7 @@ function drawMinimap() {
   const w = minimapCanvas.width, h = minimapCanvas.height;
   if (w < 2 || h < 2) return;
   
-  let viewRadius = 250; // 初始 500x500
+  let viewRadius = 500;
   if (mapZoom === 1) viewRadius = 1000;
   if (mapZoom === 2) viewRadius = WORLD;
 
@@ -1797,4 +1794,4 @@ cvs.addEventListener('touchend', () => {
 requestAnimationFrame(loop);
 </script>
 </body>
-</html>
+  </html>
